@@ -198,7 +198,7 @@ class AssignedMessageQueue {
           process_queue = rebalance_impl_->getProcessQueue(message_queue);
         }
         if (nullptr == process_queue) {
-          process_queue.reset(new ProcessQueue());
+          process_queue.reset(new ProcessQueue(message_queue));
         }
         assigned_message_queue_state_.emplace(message_queue, MessageQueueState(message_queue, process_queue));
       }

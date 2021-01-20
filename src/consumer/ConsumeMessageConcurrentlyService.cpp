@@ -46,23 +46,19 @@ void ConsumeMessageConcurrentlyService::shutdown() {
 
 void ConsumeMessageConcurrentlyService::submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
                                                              ProcessQueuePtr processQueue,
-                                                             const MQMessageQueue& messageQueue,
                                                              const bool dispathToConsume) {
-  consume_executor_.submit(
-      std::bind(&ConsumeMessageConcurrentlyService::ConsumeRequest, this, msgs, processQueue, messageQueue));
+  consume_executor_.submit(std::bind(&ConsumeMessageConcurrentlyService::ConsumeRequest, this, msgs, processQueue));
 }
 
 void ConsumeMessageConcurrentlyService::submitConsumeRequestLater(std::vector<MessageExtPtr>& msgs,
-                                                                  ProcessQueuePtr processQueue,
-                                                                  const MQMessageQueue& messageQueue) {
+                                                                  ProcessQueuePtr processQueue) {
   scheduled_executor_service_.schedule(
-      std::bind(&ConsumeMessageConcurrentlyService::submitConsumeRequest, this, msgs, processQueue, messageQueue, true),
-      5000L, time_unit::milliseconds);
+      std::bind(&ConsumeMessageConcurrentlyService::submitConsumeRequest, this, msgs, processQueue, true), 5000L,
+      time_unit::milliseconds);
 }
 
-void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr>& msgs,
-                                                       ProcessQueuePtr processQueue,
-                                                       const MQMessageQueue& messageQueue) {
+void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr>& msgs, ProcessQueuePtr processQueue) {
+  const auto& messageQueue = processQueue->message_queue();
   if (processQueue->dropped()) {
     LOG_WARN_NEW("the message queue not be able to consume, because it's dropped. group={} {}",
                  consumer_->getDefaultMQPushConsumerConfig()->group_name(), messageQueue.toString());
@@ -141,7 +137,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
 
       if (!msgBackFailed.empty()) {
         // send back failed, reconsume later
-        submitConsumeRequestLater(msgBackFailed, processQueue, messageQueue);
+        submitConsumeRequestLater(msgBackFailed, processQueue);
       }
     } break;
     default:

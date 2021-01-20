@@ -70,16 +70,13 @@ bool ConsumeMessageOrderlyService::lockOneMQ(const MQMessageQueue& mq) {
 
 void ConsumeMessageOrderlyService::submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
                                                         ProcessQueuePtr processQueue,
-                                                        const MQMessageQueue& messageQueue,
                                                         const bool dispathToConsume) {
   if (dispathToConsume) {
-    consume_executor_.submit(
-        std::bind(&ConsumeMessageOrderlyService::ConsumeRequest, this, processQueue, messageQueue));
+    consume_executor_.submit(std::bind(&ConsumeMessageOrderlyService::ConsumeRequest, this, processQueue));
   }
 }
 
 void ConsumeMessageOrderlyService::submitConsumeRequestLater(ProcessQueuePtr processQueue,
-                                                             const MQMessageQueue& messageQueue,
                                                              const long suspendTimeMillis) {
   long timeMillis = suspendTimeMillis;
   if (timeMillis == -1) {
@@ -89,32 +86,33 @@ void ConsumeMessageOrderlyService::submitConsumeRequestLater(ProcessQueuePtr pro
   timeMillis = std::max(10L, std::min(timeMillis, 30000L));
 
   static std::vector<MessageExtPtr> dummy;
-  scheduled_executor_service_.schedule(std::bind(&ConsumeMessageOrderlyService::submitConsumeRequest, this,
-                                                 std::ref(dummy), processQueue, messageQueue, true),
-                                       timeMillis, time_unit::milliseconds);
+  scheduled_executor_service_.schedule(
+      std::bind(&ConsumeMessageOrderlyService::submitConsumeRequest, this, std::ref(dummy), processQueue, true),
+      timeMillis, time_unit::milliseconds);
 }
 
-void ConsumeMessageOrderlyService::tryLockLaterAndReconsume(const MQMessageQueue& mq,
-                                                            ProcessQueuePtr processQueue,
-                                                            const long delayMills) {
+void ConsumeMessageOrderlyService::tryLockLaterAndReconsume(ProcessQueuePtr processQueue, const long delayMills) {
   scheduled_executor_service_.schedule(
-      [this, mq, processQueue]() {
+      [this, processQueue]() {
+        const auto& mq = processQueue->message_queue();
         bool lockOK = lockOneMQ(mq);
         if (lockOK) {
-          submitConsumeRequestLater(processQueue, mq, 10);
+          submitConsumeRequestLater(processQueue, 10);
         } else {
-          submitConsumeRequestLater(processQueue, mq, 3000);
+          submitConsumeRequestLater(processQueue, 3000);
         }
       },
       delayMills, time_unit::milliseconds);
 }
 
-void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue, const MQMessageQueue& messageQueue) {
+void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) {
+  const auto& messageQueue = processQueue->message_queue();
   if (processQueue->dropped()) {
     LOG_WARN_NEW("run, the message queue not be able to consume, because it's dropped. {}", messageQueue.toString());
     return;
   }
 
+  // TODO: 优化锁，或在线程中做hash
   auto objLock = message_queue_lock_.fetchLockObject(messageQueue);
   std::lock_guard<std::mutex> lock(*objLock);
 
@@ -128,19 +126,19 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue, 
 
       if (CLUSTERING == consumer_->messageModel() && !processQueue->locked()) {
         LOG_WARN_NEW("the message queue not locked, so consume later, {}", messageQueue.toString());
-        tryLockLaterAndReconsume(messageQueue, processQueue, 10);
+        tryLockLaterAndReconsume(processQueue, 10);
         break;
       }
 
       if (CLUSTERING == consumer_->messageModel() && processQueue->isLockExpired()) {
         LOG_WARN_NEW("the message queue lock expired, so consume later, {}", messageQueue.toString());
-        tryLockLaterAndReconsume(messageQueue, processQueue, 10);
+        tryLockLaterAndReconsume(processQueue, 10);
         break;
       }
 
       auto interval = UtilAll::currentTimeMillis() - beginTime;
       if (interval > MAX_TIME_CONSUME_CONTINUOUSLY) {
-        submitConsumeRequestLater(processQueue, messageQueue, 10);
+        submitConsumeRequestLater(processQueue, 10);
         break;
       }
 
@@ -172,7 +170,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue, 
             break;
           case RECONSUME_LATER:
             processQueue->makeMessageToCosumeAgain(msgs);
-            submitConsumeRequestLater(processQueue, messageQueue, -1);
+            submitConsumeRequestLater(processQueue, -1);
             continueConsume = false;
             break;
           default:
@@ -192,7 +190,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue, 
       return;
     }
 
-    tryLockLaterAndReconsume(messageQueue, processQueue, 100);
+    tryLockLaterAndReconsume(processQueue, 100);
   }
 }
 

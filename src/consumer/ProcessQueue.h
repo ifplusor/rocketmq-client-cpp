@@ -23,6 +23,7 @@
 #include <mutex>   // std::mutex
 #include <vector>  // std::vector
 
+#include "MQMessageQueue.h"
 #include "MessageExt.h"
 
 namespace rocketmq {
@@ -38,7 +39,7 @@ class ROCKETMQCLIENT_API ProcessQueue {
   static const uint64_t REBALANCE_LOCK_INTERVAL;       // ms
 
  public:
-  ProcessQueue();
+  ProcessQueue(const MQMessageQueue& message_queue);
   virtual ~ProcessQueue();
 
   bool isLockExpired() const;
@@ -60,6 +61,8 @@ class ROCKETMQCLIENT_API ProcessQueue {
   void fillProcessQueueInfo(ProcessQueueInfo& info);
 
  public:
+  inline const MQMessageQueue& message_queue() const { return message_queue_; }
+
   inline std::timed_mutex& lock_consume() { return lock_consume_; }
 
   inline long try_unlock_times() const { return try_unlock_times_.load(); }
@@ -83,6 +86,7 @@ class ROCKETMQCLIENT_API ProcessQueue {
   inline void set_last_lock_timestamp(int64_t lastLockTimestamp) { last_lock_timestamp_ = lastLockTimestamp; }
 
  private:
+  MQMessageQueue message_queue_;
   std::mutex lock_tree_map_;
   std::map<int64_t, MessageExtPtr> msg_tree_map_;
   std::timed_mutex lock_consume_;

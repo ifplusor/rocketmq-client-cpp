@@ -17,8 +17,9 @@
 #include "ProcessQueue.h"
 
 #include "Logging.h"
-#include "protocol/body/ProcessQueueInfo.hpp"
+#include "MQMessageQueue.h"
 #include "UtilAll.h"
+#include "protocol/body/ProcessQueueInfo.hpp"
 
 static const uint64_t PULL_MAX_IDLE_TIME = 120000;  // ms
 
@@ -27,8 +28,9 @@ namespace rocketmq {
 const uint64_t ProcessQueue::REBALANCE_LOCK_MAX_LIVE_TIME = 30000;
 const uint64_t ProcessQueue::REBALANCE_LOCK_INTERVAL = 20000;
 
-ProcessQueue::ProcessQueue()
-    : queue_offset_max_(0),
+ProcessQueue::ProcessQueue(const MQMessageQueue& message_queue)
+    : message_queue_(message_queue),
+      queue_offset_max_(0),
       dropped_(false),
       last_pull_timestamp_(UtilAll::currentTimeMillis()),
       last_consume_timestamp_(UtilAll::currentTimeMillis()),

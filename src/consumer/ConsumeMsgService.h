@@ -35,7 +35,6 @@ class ConsumeMsgService {
   virtual void shutdown() {}
   virtual void submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
                                     ProcessQueuePtr processQueue,
-                                    const MQMessageQueue& messageQueue,
                                     const bool dispathToConsume) = 0;
 };
 
@@ -49,17 +48,12 @@ class ConsumeMessageConcurrentlyService : public ConsumeMsgService {
 
   void submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
                             ProcessQueuePtr processQueue,
-                            const MQMessageQueue& messageQueue,
                             const bool dispathToConsume) override;
 
-  void ConsumeRequest(std::vector<MessageExtPtr>& msgs,
-                      ProcessQueuePtr processQueue,
-                      const MQMessageQueue& messageQueue);
+  void ConsumeRequest(std::vector<MessageExtPtr>& msgs, ProcessQueuePtr processQueue);
 
  private:
-  void submitConsumeRequestLater(std::vector<MessageExtPtr>& msgs,
-                                 ProcessQueuePtr processQueue,
-                                 const MQMessageQueue& messageQueue);
+  void submitConsumeRequestLater(std::vector<MessageExtPtr>& msgs, ProcessQueuePtr processQueue);
 
  private:
   DefaultMQPushConsumerImpl* consumer_;
@@ -80,14 +74,11 @@ class ConsumeMessageOrderlyService : public ConsumeMsgService {
 
   void submitConsumeRequest(std::vector<MessageExtPtr>& msgs,
                             ProcessQueuePtr processQueue,
-                            const MQMessageQueue& messageQueue,
                             const bool dispathToConsume) override;
-  void submitConsumeRequestLater(ProcessQueuePtr processQueue,
-                                 const MQMessageQueue& messageQueue,
-                                 const long suspendTimeMillis);
-  void tryLockLaterAndReconsume(const MQMessageQueue& mq, ProcessQueuePtr processQueue, const long delayMills);
+  void submitConsumeRequestLater(ProcessQueuePtr processQueue, const long suspendTimeMillis);
+  void tryLockLaterAndReconsume(ProcessQueuePtr processQueue, const long delayMills);
 
-  void ConsumeRequest(ProcessQueuePtr processQueue, const MQMessageQueue& messageQueue);
+  void ConsumeRequest(ProcessQueuePtr processQueue);
 
   void lockMQPeriodically();
   void unlockAllMQ();

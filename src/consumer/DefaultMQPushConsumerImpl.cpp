@@ -22,8 +22,8 @@
 
 #include "CommunicationMode.h"
 #include "ConsumeMsgService.h"
-#include "protocol/body/ConsumerRunningInfo.h"
 #include "FilterAPI.hpp"
+#include "LocalFileOffsetStore.h"
 #include "Logging.h"
 #include "MQAdminImpl.h"
 #include "MQClientAPIImpl.h"
@@ -31,7 +31,6 @@
 #include "MQClientManager.h"
 #include "MQProtos.h"
 #include "NamespaceUtil.h"
-#include "LocalFileOffsetStore.h"
 #include "PullAPIWrapper.h"
 #include "PullMessageService.hpp"
 #include "PullSysFlag.h"
@@ -40,6 +39,7 @@
 #include "SocketUtil.h"
 #include "UtilAll.h"
 #include "Validators.h"
+#include "protocol/body/ConsumerRunningInfo.h"
 
 static const long BROKER_SUSPEND_MAX_TIME_MILLIS = 1000 * 15;
 static const long CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND = 1000 * 30;
@@ -74,8 +74,8 @@ class DefaultMQPushConsumerImpl::AsyncPullCallback : public AutoDeletePullCallba
           first_msg_offset = pull_result->msg_found_list()[0]->queue_offset();
 
           pull_request_->process_queue()->putMessage(pull_result->msg_found_list());
-          consumer->consume_service_->submitConsumeRequest(
-              pull_result->msg_found_list(), pull_request_->process_queue(), pull_request_->message_queue(), true);
+          consumer->consume_service_->submitConsumeRequest(pull_result->msg_found_list(),
+                                                           pull_request_->process_queue(), true);
         }
 
         consumer->executePullRequestImmediately(pull_request_);
@@ -239,8 +239,9 @@ void DefaultMQPushConsumerImpl::start() {
       if (!registerOK) {
         service_state_ = CREATE_JUST;
         consume_service_->shutdown();
-        THROW_MQEXCEPTION(MQClientException, "The cousumer group[" + client_config_->group_name() +
-                                                 "] has been created before, specify another name please.",
+        THROW_MQEXCEPTION(MQClientException,
+                          "The cousumer group[" + client_config_->group_name() +
+                              "] has been created before, specify another name please.",
                           -1);
       }
 
