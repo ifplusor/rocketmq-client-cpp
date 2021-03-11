@@ -720,12 +720,39 @@ void DefaultLitePullConsumerImpl::parseMessageQueues(std::vector<MQMessageQueue>
   }
 }
 
-void DefaultLitePullConsumerImpl::assign(const std::vector<MQMessageQueue>& messageQueues) {
-  // TODO:
+void DefaultLitePullConsumerImpl::assign(std::vector<MQMessageQueue>& message_queues) {
+  if (message_queues.empty()) {
+    THROW_MQEXCEPTION(MQClientException, "Message queues can not be empty.", -1);
+  }
+  std::lock_guard<std::mutex> lock(mutex_);  // synchronized
+  set_subscription_type(SubscriptionType::ASSIGN);
+  updateAssignedMessageQueue(message_queues);
 }
 
-void DefaultLitePullConsumerImpl::seek(const MQMessageQueue& messageQueue, int64_t offset) {
-  // TODO:
+void DefaultLitePullConsumerImpl::seek(const MQMessageQueue& message_queue, int64_t offset) {
+  auto process_queue = assigned_message_queue_->getProcessQueue(message_queue);
+  if (process_queue == nullptr || process_queue->dropped()) {
+    if (subscription_type_ == SubscriptionType::SUBSCRIBE) {
+      THROW_MQEXCEPTION(
+          MQClientException,
+          "The message queue is not in assigned list, may be rebalancing, message queue: " + message_queue.toString(),
+          -1);
+    } else {
+      THROW_MQEXCEPTION(MQClientException,
+                        "The message queue is not in assigned list, message queue: " + message_queue.toString(), -1);
+    }
+  }
+  long min_offset = minOffset(message_queue);
+  long max_offset = maxOffset(message_queue);
+  if (offset < min_offset || offset > max_offset) {
+    THROW_MQEXCEPTION(MQClientException,
+                      "Seek offset illegal, seek offset = " + std::to_string(offset) + ", min offset = " +
+                          std::to_string(min_offset) + ", max offset = " + std::to_string(max_offset),
+                      -1);
+  }
+  std::lock_guard<std::timed_mutex> lock(process_queue->consume_mutex());
+  process_queue->set_seek_offset(offset);
+  clearMessageQueueInCache(process_queue);
 }
 
 void DefaultLitePullConsumerImpl::seekToBegin(const MQMessageQueue& message_queue) {
@@ -736,6 +763,14 @@ void DefaultLitePullConsumerImpl::seekToBegin(const MQMessageQueue& message_queu
 void DefaultLitePullConsumerImpl::seekToEnd(const MQMessageQueue& message_queue) {
   auto end = maxOffset(message_queue);
   seek(message_queue, end);
+}
+
+void DefaultLitePullConsumerImpl::clearMessageQueueInCache(const ProcessQueuePtr& process_queue) {
+  // Iterator<ConsumeRequest> iter = consumeRequestCache.iterator();
+  // while (iter.hasNext()) {
+  //  if (iter.next().getMessageQueue().equals(messageQueue))
+  //    iter.remove();
+  //}
 }
 
 int64_t DefaultLitePullConsumerImpl::offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) {

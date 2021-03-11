@@ -93,7 +93,7 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   void seekToBegin(const MQMessageQueue& message_queue) override;
   void seekToEnd(const MQMessageQueue& message_queue) override;
 
-  int64_t offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) override;
+  void clearMessageQueueInCache(const ProcessQueuePtr& process_queue);
 
   int64_t offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) override;
 
