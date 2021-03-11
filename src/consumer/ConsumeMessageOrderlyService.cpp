@@ -150,7 +150,7 @@ void ConsumeMessageOrderlyService::ConsumeRequest(ProcessQueuePtr processQueue) 
       if (!msgs.empty()) {
         ConsumeStatus status = RECONSUME_LATER;
         try {
-          std::lock_guard<std::timed_mutex> lock(processQueue->lock_consume());
+          std::lock_guard<std::timed_mutex> lock(processQueue->consume_mutex());
           if (processQueue->dropped()) {
             LOG_WARN_NEW("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
                          messageQueue.toString());

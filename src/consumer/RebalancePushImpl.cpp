@@ -34,8 +34,8 @@ bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, 
   if (default_mq_push_consumer_impl_->getMessageListenerType() == messageListenerOrderly &&
       CLUSTERING == default_mq_push_consumer_impl_->messageModel()) {
     try {
-      if (UtilAll::try_lock_for(pq->lock_consume(), 1000)) {
-        std::lock_guard<std::timed_mutex> lock(pq->lock_consume(), std::adopt_lock);
+      if (UtilAll::try_lock_for(pq->consume_mutex(), 1000)) {
+        std::lock_guard<std::timed_mutex> lock(pq->consume_mutex(), std::adopt_lock);
         // TODO: unlockDelay
         unlock(mq);
         return true;

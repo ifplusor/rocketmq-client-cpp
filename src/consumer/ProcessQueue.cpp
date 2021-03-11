@@ -30,16 +30,13 @@ const uint64_t ProcessQueue::REBALANCE_LOCK_INTERVAL = 20000;
 
 ProcessQueue::ProcessQueue(const MQMessageQueue& message_queue)
     : message_queue_(message_queue),
-      queue_offset_max_(0),
-      dropped_(false),
       last_pull_timestamp_(UtilAll::currentTimeMillis()),
       last_consume_timestamp_(UtilAll::currentTimeMillis()),
-      locked_(false),
       last_lock_timestamp_(UtilAll::currentTimeMillis()) {}
 
 ProcessQueue::~ProcessQueue() {
-  msg_tree_map_.clear();
-  consuming_msg_orderly_tree_map_.clear();
+  message_cache_.clear();
+  consuming_message_cache_.clear();
 }
 
 bool ProcessQueue::isLockExpired() const {
@@ -51,11 +48,11 @@ bool ProcessQueue::isPullExpired() const {
 }
 
 void ProcessQueue::putMessage(const std::vector<MessageExtPtr>& msgs) {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
 
   for (const auto& msg : msgs) {
     int64_t offset = msg->queue_offset();
-    msg_tree_map_[offset] = msg;
+    message_cache_[offset] = msg;
     if (offset > queue_offset_max_) {
       queue_offset_max_ = offset;
     }
@@ -68,20 +65,20 @@ int64_t ProcessQueue::removeMessage(const std::vector<MessageExtPtr>& msgs) {
   int64_t result = -1;
   const auto now = UtilAll::currentTimeMillis();
 
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
   last_consume_timestamp_ = now;
 
-  if (!msg_tree_map_.empty()) {
+  if (!message_cache_.empty()) {
     result = queue_offset_max_ + 1;
     LOG_DEBUG_NEW("offset result is:{}, queue_offset_max is:{}, msgs size:{}", result, queue_offset_max_, msgs.size());
 
     for (auto& msg : msgs) {
       LOG_DEBUG_NEW("remove these msg from msg_tree_map, its offset:{}", msg->queue_offset());
-      msg_tree_map_.erase(msg->queue_offset());
+      message_cache_.erase(msg->queue_offset());
     }
 
-    if (!msg_tree_map_.empty()) {
-      auto it = msg_tree_map_.begin();
+    if (!message_cache_.empty()) {
+      auto it = message_cache_.begin();
       result = it->first;
     }
   }
@@ -90,30 +87,31 @@ int64_t ProcessQueue::removeMessage(const std::vector<MessageExtPtr>& msgs) {
 }
 
 int ProcessQueue::getCacheMsgCount() {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
-  return static_cast<int>(msg_tree_map_.size() + consuming_msg_orderly_tree_map_.size());
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
+  return static_cast<int>(message_cache_.size() + consuming_message_cache_.size());
 }
 
 int64_t ProcessQueue::getCacheMinOffset() {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
-  if (msg_tree_map_.empty() && consuming_msg_orderly_tree_map_.empty()) {
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
+  if (message_cache_.empty() && consuming_message_cache_.empty()) {
     return 0;
-  } else if (!consuming_msg_orderly_tree_map_.empty()) {
-    return consuming_msg_orderly_tree_map_.begin()->first;
+  } else if (!consuming_message_cache_.empty()) {
+    return consuming_message_cache_.begin()->first;
   } else {
-    return msg_tree_map_.begin()->first;
+    return message_cache_.begin()->first;
   }
 }
 
 int64_t ProcessQueue::getCacheMaxOffset() {
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
   return queue_offset_max_;
 }
 
 int64_t ProcessQueue::commit() {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
-  if (!consuming_msg_orderly_tree_map_.empty()) {
-    int64_t offset = (--consuming_msg_orderly_tree_map_.end())->first;
-    consuming_msg_orderly_tree_map_.clear();
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
+  if (!consuming_message_cache_.empty()) {
+    int64_t offset = (--consuming_message_cache_.end())->first;
+    consuming_message_cache_.clear();
     return offset + 1;
   } else {
     return -1;
@@ -121,46 +119,46 @@ int64_t ProcessQueue::commit() {
 }
 
 void ProcessQueue::makeMessageToCosumeAgain(std::vector<MessageExtPtr>& msgs) {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
   for (const auto& msg : msgs) {
-    msg_tree_map_[msg->queue_offset()] = msg;
-    consuming_msg_orderly_tree_map_.erase(msg->queue_offset());
+    message_cache_[msg->queue_offset()] = msg;
+    consuming_message_cache_.erase(msg->queue_offset());
   }
 }
 
 void ProcessQueue::takeMessages(std::vector<MessageExtPtr>& out_msgs, int batchSize) {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
-  for (auto it = msg_tree_map_.begin(); it != msg_tree_map_.end() && batchSize--;) {
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
+  for (auto it = message_cache_.begin(); it != message_cache_.end() && batchSize--;) {
     out_msgs.push_back(it->second);
-    consuming_msg_orderly_tree_map_[it->first] = it->second;
-    it = msg_tree_map_.erase(it);
+    consuming_message_cache_[it->first] = it->second;
+    it = message_cache_.erase(it);
   }
 }
 
 void ProcessQueue::clearAllMsgs() {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
 
   if (dropped()) {
     LOG_DEBUG_NEW("clear msg_tree_map as PullRequest had been dropped.");
-    msg_tree_map_.clear();
-    consuming_msg_orderly_tree_map_.clear();
+    message_cache_.clear();
+    consuming_message_cache_.clear();
     queue_offset_max_ = 0;
   }
 }
 
 void ProcessQueue::fillProcessQueueInfo(ProcessQueueInfo& info) {
-  std::lock_guard<std::mutex> lock(lock_tree_map_);
+  std::lock_guard<std::mutex> lock(message_cache_mutex_);
 
-  if (!msg_tree_map_.empty()) {
-    info.cachedMsgMinOffset = msg_tree_map_.begin()->first;
+  if (!message_cache_.empty()) {
+    info.cachedMsgMinOffset = message_cache_.begin()->first;
     info.cachedMsgMaxOffset = queue_offset_max_;
-    info.cachedMsgCount = msg_tree_map_.size();
+    info.cachedMsgCount = message_cache_.size();
   }
 
-  if (!consuming_msg_orderly_tree_map_.empty()) {
-    info.transactionMsgMinOffset = consuming_msg_orderly_tree_map_.begin()->first;
-    info.transactionMsgMaxOffset = (--consuming_msg_orderly_tree_map_.end())->first;
-    info.transactionMsgCount = consuming_msg_orderly_tree_map_.size();
+  if (!consuming_message_cache_.empty()) {
+    info.transactionMsgMinOffset = consuming_message_cache_.begin()->first;
+    info.transactionMsgMaxOffset = (--consuming_message_cache_.end())->first;
+    info.transactionMsgCount = consuming_message_cache_.size();
   }
 
   info.setLocked(locked_);
