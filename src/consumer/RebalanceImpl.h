@@ -39,7 +39,7 @@ class RebalanceImpl {
  public:
   RebalanceImpl(const std::string& consumerGroup,
                 MessageModel messageModel,
-                AllocateMQStrategy* allocateMqStrategy,
+                const AllocateMQStrategy& allocateMqStrategy,
                 MQClientInstance* clientInstance);
   virtual ~RebalanceImpl();
 
@@ -90,7 +90,7 @@ class RebalanceImpl {
  public:
   inline void set_consumer_group(const std::string& groupname) { consumer_group_ = groupname; }
   inline void set_message_model(MessageModel messageModel) { message_model_ = messageModel; }
-  inline void set_allocate_mq_strategy(AllocateMQStrategy* allocateMqStrategy) {
+  inline void set_allocate_mq_strategy(const AllocateMQStrategy& allocateMqStrategy) {
     allocate_mq_strategy_ = allocateMqStrategy;
   }
   inline void set_client_instance(MQClientInstance* instance) { client_instance_ = instance; }
@@ -106,7 +106,9 @@ class RebalanceImpl {
 
   std::string consumer_group_;
   MessageModel message_model_;
-  AllocateMQStrategy* allocate_mq_strategy_;
+
+  AllocateMQStrategy allocate_mq_strategy_;
+
   MQClientInstance* client_instance_;
 };
 

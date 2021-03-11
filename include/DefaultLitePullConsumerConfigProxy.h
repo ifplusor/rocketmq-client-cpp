@@ -157,11 +157,11 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumerConfigProxy : public MQClientCon
         ->set_topic_metadata_check_interval_millis(topicMetadataCheckIntervalMillis);
   }
 
-  AllocateMQStrategy* allocate_mq_strategy() const override {
+  const AllocateMQStrategy& allocate_mq_strategy() const override {
     return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->allocate_mq_strategy();
   }
 
-  void set_allocate_mq_strategy(AllocateMQStrategy* strategy) override {
+  void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override {
     dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_allocate_mq_strategy(strategy);
   }
 

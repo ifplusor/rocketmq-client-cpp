@@ -21,7 +21,6 @@
 #include <algorithm>  // std::min
 #include <thread>     // std::thread::hardware_concurrency
 
-#include "AllocateMQAveragely.hpp"
 #include "DefaultLitePullConsumerConfig.h"
 #include "MQClientConfigImpl.hpp"
 
@@ -47,8 +46,7 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
         pull_threshold_for_queue_(1000),
         pull_time_delay_millis_when_exception_(1000),
         poll_timeout_millis_(1000 * 5),
-        topic_metadata_check_interval_millis_(30 * 1000),
-        allocate_mq_strategy_(new AllocateMQAveragely()) {}
+        topic_metadata_check_interval_millis_(30 * 1000) {}
   virtual ~DefaultLitePullConsumerConfigImpl() = default;
 
   MessageModel message_model() const override { return message_model_; }
@@ -112,8 +110,8 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
     topic_metadata_check_interval_millis_ = topicMetadataCheckIntervalMillis;
   }
 
-  AllocateMQStrategy* allocate_mq_strategy() const override { return allocate_mq_strategy_.get(); }
-  void set_allocate_mq_strategy(AllocateMQStrategy* strategy) override { allocate_mq_strategy_.reset(strategy); }
+  const AllocateMQStrategy& allocate_mq_strategy() const override { return allocate_mq_strategy_; }
+  void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override { allocate_mq_strategy_ = strategy; }
 
  private:
   MessageModel message_model_;
@@ -142,7 +140,7 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
 
   long topic_metadata_check_interval_millis_;
 
-  std::unique_ptr<AllocateMQStrategy> allocate_mq_strategy_;
+  AllocateMQStrategy allocate_mq_strategy_;
 };
 
 }  // namespace rocketmq

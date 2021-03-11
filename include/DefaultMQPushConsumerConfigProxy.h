@@ -104,11 +104,11 @@ class ROCKETMQCLIENT_API DefaultMQPushConsumerConfigProxy : public MQClientConfi
         ->set_pull_time_delay_millis_when_exception(pull_time_delay_millis_when_exception);
   }
 
-  AllocateMQStrategy* allocate_mq_strategy() const override {
+  const AllocateMQStrategy& allocate_mq_strategy() const override {
     return dynamic_cast<DefaultMQPushConsumerConfig*>(client_config_.get())->allocate_mq_strategy();
   }
 
-  void set_allocate_mq_strategy(AllocateMQStrategy* strategy) override {
+  void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override {
     dynamic_cast<DefaultMQPushConsumerConfig*>(client_config_.get())->set_allocate_mq_strategy(strategy);
   }
 

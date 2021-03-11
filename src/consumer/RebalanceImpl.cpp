@@ -23,7 +23,7 @@ namespace rocketmq {
 
 RebalanceImpl::RebalanceImpl(const std::string& consumerGroup,
                              MessageModel messageModel,
-                             AllocateMQStrategy* allocateMqStrategy,
+                             const AllocateMQStrategy& allocateMqStrategy,
                              MQClientInstance* instance)
     : consumer_group_(consumerGroup),
       message_model_(messageModel),
@@ -270,16 +270,12 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, const bool isOrde
         LOG_INFO_NEW("client id:{} of topic:{}", cid, topic);
       }
 
-      // sort
-      sort(mqAll.begin(), mqAll.end());
-      sort(cidAll.begin(), cidAll.end());
-
       // allocate mqs
       std::vector<MQMessageQueue> allocateResult;
       try {
-        allocate_mq_strategy_->allocate(client_instance_->getClientId(), mqAll, cidAll, allocateResult);
+        allocateResult = allocate_mq_strategy_(client_instance_->getClientId(), mqAll, cidAll);
       } catch (MQException& e) {
-        LOG_ERROR_NEW("AllocateMessageQueueStrategy.allocate Exception: {}", e.what());
+        LOG_ERROR_NEW("encounter exception when invoke AllocateMQStrategy: {}", e.what());
         return;
       }
 

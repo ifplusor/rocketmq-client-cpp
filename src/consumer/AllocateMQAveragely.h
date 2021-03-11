@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_ALLOCATEMQSTRATEGY_H_
-#define ROCKETMQ_ALLOCATEMQSTRATEGY_H_
+#ifndef ROCKETMQ_CONSUMER_ALLOCATEMQAVERAGELY_HPP_
+#define ROCKETMQ_CONSUMER_ALLOCATEMQAVERAGELY_HPP_
 
-#include <functional>
 #include <string>  // std::string
 #include <vector>  // std::vector
 
@@ -25,15 +24,10 @@
 
 namespace rocketmq {
 
-/**
- * AllocateMQStrategy - Interface for allocate MessageQueue
- *
- * std::vector<MQMessageQueue> *AllocateMQStrategy(
- *   const std::string& current_cid, std::vector<MQMessageQueue>& all_mqs, std::vector<std::string>& all_cids);
- */
-using AllocateMQStrategy = std::function<
-    std::vector<MQMessageQueue>(const std::string&, std::vector<MQMessageQueue>&, std::vector<std::string>&)>;
+std::vector<MQMessageQueue> AllocateMQAveragely(const std::string& current_cid,
+                                                std::vector<MQMessageQueue>& all_mqs,
+                                                std::vector<std::string>& all_cids);
 
 }  // namespace rocketmq
 
-#endif  // __ALLOCATE_MQ_STRATEGY_H__
+#endif  // ROCKETMQ_CONSUMER_ALLOCATEMQAVERAGELY_HPP_

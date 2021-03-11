@@ -21,7 +21,6 @@
 #include <algorithm>  // std::min
 #include <thread>     // std::thread::hardware_concurrency
 
-#include "AllocateMQAveragely.hpp"
 #include "DefaultMQPushConsumerConfig.h"
 #include "MQClientConfigImpl.hpp"
 
@@ -41,8 +40,7 @@ class DefaultMQPushConsumerConfigImpl : virtual public DefaultMQPushConsumerConf
         consume_message_batch_max_size_(1),
         pull_batch_size_(32),
         max_reconsume_times_(16),
-        pull_time_delay_millis_when_exception_(3000),
-        allocate_mq_strategy_(new AllocateMQAveragely()) {}
+        pull_time_delay_millis_when_exception_(3000) {}
   virtual ~DefaultMQPushConsumerConfigImpl() = default;
 
   MessageModel message_model() const override { return message_model_; }
@@ -82,8 +80,8 @@ class DefaultMQPushConsumerConfigImpl : virtual public DefaultMQPushConsumerConf
     pull_time_delay_millis_when_exception_ = pull_time_delay_millis_when_exception;
   }
 
-  AllocateMQStrategy* allocate_mq_strategy() const override { return allocate_mq_strategy_.get(); }
-  void set_allocate_mq_strategy(AllocateMQStrategy* strategy) override { allocate_mq_strategy_.reset(strategy); }
+  const AllocateMQStrategy& allocate_mq_strategy() const override { return allocate_mq_strategy_; }
+  void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override { allocate_mq_strategy_ = strategy; }
 
  protected:
   MessageModel message_model_;
@@ -102,7 +100,7 @@ class DefaultMQPushConsumerConfigImpl : virtual public DefaultMQPushConsumerConf
 
   long pull_time_delay_millis_when_exception_;  // 3000
 
-  std::unique_ptr<AllocateMQStrategy> allocate_mq_strategy_;
+  AllocateMQStrategy allocate_mq_strategy_;
 };
 
 }  // namespace rocketmq

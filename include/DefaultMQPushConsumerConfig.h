@@ -71,8 +71,8 @@ class ROCKETMQCLIENT_API DefaultMQPushConsumerConfig : virtual public MQClientCo
   virtual long pull_time_delay_millis_when_exception() const = 0;
   virtual void set_pull_time_delay_millis_when_exception(long pull_time_delay_millis_when_exception) = 0;
 
-  virtual AllocateMQStrategy* allocate_mq_strategy() const = 0;
-  virtual void set_allocate_mq_strategy(AllocateMQStrategy* strategy) = 0;
+  virtual const AllocateMQStrategy& allocate_mq_strategy() const = 0;
+  virtual void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) = 0;
 };
 
 }  // namespace rocketmq

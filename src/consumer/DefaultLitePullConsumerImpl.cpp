@@ -301,8 +301,10 @@ void DefaultLitePullConsumerImpl::start() {
       // init rebalance_impl_
       rebalance_impl_->set_consumer_group(client_config_->group_name());
       rebalance_impl_->set_message_model(getDefaultLitePullConsumerConfig()->message_model());
-      rebalance_impl_->set_allocate_mq_strategy(getDefaultLitePullConsumerConfig()->allocate_mq_strategy());
       rebalance_impl_->set_client_instance(client_instance_.get());
+      if (getDefaultLitePullConsumerConfig()->allocate_mq_strategy() != nullptr) {
+        rebalance_impl_->set_allocate_mq_strategy(getDefaultLitePullConsumerConfig()->allocate_mq_strategy());
+      }
 
       // init pull_api_wrapper_
       pull_api_wrapper_.reset(new PullAPIWrapper(client_instance_.get(), client_config_->group_name()));
@@ -368,11 +370,6 @@ void DefaultLitePullConsumerImpl::checkConfig() {
   if (getDefaultLitePullConsumerConfig()->message_model() != BROADCASTING &&
       getDefaultLitePullConsumerConfig()->message_model() != CLUSTERING) {
     THROW_MQEXCEPTION(MQClientException, "messageModel is valid", -1);
-  }
-
-  // allocateMessageQueueStrategy
-  if (nullptr == getDefaultLitePullConsumerConfig()->allocate_mq_strategy()) {
-    THROW_MQEXCEPTION(MQClientException, "allocateMessageQueueStrategy is null", -1);
   }
 
   // if (getDefaultLitePullConsumerConfig()->getConsumerTimeoutMillisWhenSuspend() <

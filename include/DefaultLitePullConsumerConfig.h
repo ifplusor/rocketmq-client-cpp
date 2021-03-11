@@ -76,8 +76,8 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumerConfig : virtual public MQClient
   virtual long topic_metadata_check_interval_millis() const = 0;
   virtual void set_topic_metadata_check_interval_millis(long topic_metadata_check_interval_millis) = 0;
 
-  virtual AllocateMQStrategy* allocate_mq_strategy() const = 0;
-  virtual void set_allocate_mq_strategy(AllocateMQStrategy* strategy) = 0;
+  virtual const AllocateMQStrategy& allocate_mq_strategy() const = 0;
+  virtual void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) = 0;
 };
 
 }  // namespace rocketmq

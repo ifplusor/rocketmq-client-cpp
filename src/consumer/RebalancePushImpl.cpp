@@ -16,13 +16,14 @@
  */
 #include "RebalancePushImpl.h"
 
+#include "AllocateMQAveragely.h"
 #include "OffsetStore.h"
 #include "UtilAll.h"
 
 namespace rocketmq {
 
 RebalancePushImpl::RebalancePushImpl(DefaultMQPushConsumerImpl* consumerImpl)
-    : RebalanceImpl(null, CLUSTERING, nullptr, nullptr), default_mq_push_consumer_impl_(consumerImpl) {}
+    : RebalanceImpl(null, CLUSTERING, AllocateMQAveragely, nullptr), default_mq_push_consumer_impl_(consumerImpl) {}
 
 bool RebalancePushImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq) {
   auto* pOffsetStore = default_mq_push_consumer_impl_->getOffsetStore();
