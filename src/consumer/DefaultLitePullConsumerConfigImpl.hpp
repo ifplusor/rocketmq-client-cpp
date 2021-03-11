@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -31,22 +30,6 @@ namespace rocketmq {
  */
 class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumerConfig, public MQClientConfigImpl {
  public:
-  DefaultLitePullConsumerConfigImpl()
-      : message_model_(MessageModel::CLUSTERING),
-        consume_from_where_(ConsumeFromWhere::CONSUME_FROM_LAST_OFFSET),
-        consume_timestamp_(UtilAll::to_string(UtilAll::currentTimeMillis() - (1000 * 60 * 30))),
-        auto_commit_interval_millis_(5 * 1000),
-        pull_batch_size_(10),
-        consumer_pull_timeout_millis_(1000 * 10),
-        consumer_timeout_millis_when_suspend_(1000 * 30),
-        broker_suspend_max_time_millis_(1000 * 20),
-        pull_threshold_for_all_(10000),
-        pull_threshold_for_queue_(1000),
-        pull_time_delay_millis_when_exception_(1000),
-        poll_timeout_millis_(1000 * 5),
-        topic_metadata_check_interval_millis_(30 * 1000) {}
-  virtual ~DefaultLitePullConsumerConfigImpl() = default;
-
   MessageModel message_model() const override { return message_model_; }
   void set_message_model(MessageModel messageModel) override { message_model_ = messageModel; }
 
@@ -106,27 +89,27 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
   void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override { allocate_mq_strategy_ = strategy; }
 
  private:
-  MessageModel message_model_;
+  MessageModel message_model_{MessageModel::CLUSTERING};
 
-  ConsumeFromWhere consume_from_where_;
-  std::string consume_timestamp_;
+  ConsumeFromWhere consume_from_where_{ConsumeFromWhere::CONSUME_FROM_LAST_OFFSET};
+  std::string consume_timestamp_{UtilAll::to_string(UtilAll::currentTimeMillis() - (1000 * 60 * 30))};
 
-  long auto_commit_interval_millis_;
+  long auto_commit_interval_millis_{5 * 1000};
 
-  int pull_batch_size_;
+  int pull_batch_size_{10};
 
-  long consumer_pull_timeout_millis_;
-  long consumer_timeout_millis_when_suspend_;
-  long broker_suspend_max_time_millis_;
+  long consumer_pull_timeout_millis_{10 * 1000};
+  long consumer_timeout_millis_when_suspend_{30 * 1000};
+  long broker_suspend_max_time_millis_{20 * 1000};
 
-  long pull_threshold_for_all_;
-  int pull_threshold_for_queue_;
+  long pull_threshold_for_all_{10000};
+  int pull_threshold_for_queue_{1000};
 
-  long pull_time_delay_millis_when_exception_;  // 1000
+  long pull_time_delay_millis_when_exception_{1000};
 
-  long poll_timeout_millis_;
+  long poll_timeout_millis_{5 * 1000};
 
-  long topic_metadata_check_interval_millis_;
+  long topic_metadata_check_interval_millis_{30 * 1000};
 
   AllocateMQStrategy allocate_mq_strategy_;
 };

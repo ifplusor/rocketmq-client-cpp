@@ -29,8 +29,8 @@ class MessageQueueListener {
   virtual ~MessageQueueListener() = default;
 
   virtual void messageQueueChanged(const std::string& topic,
-                                   std::vector<MQMessageQueue>& mqAll,
-                                   std::vector<MQMessageQueue>& mqDivided) = 0;
+                                   std::vector<MQMessageQueue>& all_mqs,
+                                   std::vector<MQMessageQueue>& allocated_mqs) = 0;
 };
 
 }  // namespace rocketmq

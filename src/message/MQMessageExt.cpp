@@ -21,7 +21,7 @@
 
 namespace rocketmq {
 
-std::vector<MQMessageExt> MQMessageExt::from_list(std::vector<MessageExtPtr>& msg_list) {
+std::vector<MQMessageExt> MQMessageExt::FromPtrList(std::vector<MessageExtPtr>& msg_list) {
   std::vector<MQMessageExt> message_list;
   message_list.reserve(msg_list.size());
   for (const auto& msg : msg_list) {

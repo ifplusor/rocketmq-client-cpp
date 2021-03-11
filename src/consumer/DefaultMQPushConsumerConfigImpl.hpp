@@ -31,18 +31,6 @@ namespace rocketmq {
  */
 class DefaultMQPushConsumerConfigImpl : virtual public DefaultMQPushConsumerConfig, public MQClientConfigImpl {
  public:
-  DefaultMQPushConsumerConfigImpl()
-      : message_model_(MessageModel::CLUSTERING),
-        consume_from_where_(ConsumeFromWhere::CONSUME_FROM_LAST_OFFSET),
-        consume_timestamp_("0"),
-        consume_thread_nums_(std::min(8, (int)std::thread::hardware_concurrency())),
-        pull_threshold_for_queue_(1000),
-        consume_message_batch_max_size_(1),
-        pull_batch_size_(32),
-        max_reconsume_times_(16),
-        pull_time_delay_millis_when_exception_(3000) {}
-  virtual ~DefaultMQPushConsumerConfigImpl() = default;
-
   MessageModel message_model() const override { return message_model_; }
   void set_message_model(MessageModel messageModel) override { message_model_ = messageModel; }
 
@@ -84,21 +72,21 @@ class DefaultMQPushConsumerConfigImpl : virtual public DefaultMQPushConsumerConf
   void set_allocate_mq_strategy(const AllocateMQStrategy& strategy) override { allocate_mq_strategy_ = strategy; }
 
  protected:
-  MessageModel message_model_;
+  MessageModel message_model_{MessageModel::CLUSTERING};
 
-  ConsumeFromWhere consume_from_where_;
-  std::string consume_timestamp_;
+  ConsumeFromWhere consume_from_where_{ConsumeFromWhere::CONSUME_FROM_LAST_OFFSET};
+  std::string consume_timestamp_{"0"};
 
-  int consume_thread_nums_;
+  int consume_thread_nums_{std::min(8, (int)std::thread::hardware_concurrency())};
 
-  int pull_threshold_for_queue_;
+  int pull_threshold_for_queue_{1000};
 
-  int consume_message_batch_max_size_;  // 1
-  int pull_batch_size_;                 // 32
+  int consume_message_batch_max_size_{1};
+  int pull_batch_size_{32};
 
-  int max_reconsume_times_;
+  int max_reconsume_times_{16};
 
-  long pull_time_delay_millis_when_exception_;  // 3000
+  long pull_time_delay_millis_when_exception_{3 * 1000};
 
   AllocateMQStrategy allocate_mq_strategy_;
 };

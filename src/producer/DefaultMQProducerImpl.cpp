@@ -18,7 +18,6 @@
 
 #include <cassert>
 #include <typeindex>
-#include "MQMessageQueue.h"
 
 #ifndef WIN32
 #include <signal.h>
@@ -33,6 +32,7 @@
 #include "MQClientManager.h"
 #include "MQException.h"
 #include "MQFaultStrategy.h"
+#include "MQMessageQueue.h"
 #include "MQProtos.h"
 #include "MessageBatch.h"
 #include "MessageClientIDSetter.h"

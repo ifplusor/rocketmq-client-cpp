@@ -79,30 +79,30 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   bool isAutoCommit() const override;
   void setAutoCommit(bool auto_commit) override;
 
-  void subscribe(const std::string& topic, const std::string& subExpression) override;
-  void subscribe(const std::string& topic, const MessageSelector& selector) override;
-
-  void unsubscribe(const std::string& topic) override;
-
   std::vector<MQMessageExt> poll() override;
   std::vector<MQMessageExt> poll(long timeout) override;
 
+  void subscribe(const std::string& topic, const std::string& subExpression) override;
+  void subscribe(const std::string& topic, const MessageSelector& selector) override;
+  void unsubscribe(const std::string& topic) override;
+
   std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) override;
+  void assign(std::vector<MQMessageQueue>& message_queues) override;
 
-  void assign(const std::vector<MQMessageQueue>& messageQueues) override;
-
-  void seek(const MQMessageQueue& messageQueue, int64_t offset) override;
-  void seekToBegin(const MQMessageQueue& messageQueue) override;
-  void seekToEnd(const MQMessageQueue& messageQueue) override;
+  void seek(const MQMessageQueue& message_queue, int64_t offset) override;
+  void seekToBegin(const MQMessageQueue& message_queue) override;
+  void seekToEnd(const MQMessageQueue& message_queue) override;
 
   int64_t offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) override;
 
-  void pause(const std::vector<MQMessageQueue>& messageQueues) override;
-  void resume(const std::vector<MQMessageQueue>& messageQueues) override;
+  int64_t offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) override;
+
+  void pause(const std::vector<MQMessageQueue>& message_queues) override;
+  void resume(const std::vector<MQMessageQueue>& message_queues) override;
 
   void commitSync() override;
 
-  int64_t committed(const MQMessageQueue& messageQueue) override;
+  int64_t committed(const MQMessageQueue& message_queue) override;
 
   void registerTopicMessageQueueChangeListener(
       const std::string& topic,
@@ -145,22 +145,20 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
 
   void updateTopicSubscribeInfoWhenSubscriptionChanged();
 
+  void resetTopic(std::vector<MessageExtPtr>& msg_list);
 
   void updateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assigned_message_queues);
   void updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned_message_queues);
   void dispatchAssigndPullRequest(std::vector<PullRequestPtr>& pull_request_list);
 
   int64_t nextPullOffset(const ProcessQueuePtr& process_queue);
-  int64_t fetchConsumeOffset(const MQMessageQueue& messageQueue);
+  int64_t fetchConsumeOffset(const MQMessageQueue& message_queue);
 
   void submitConsumeRequest(ConsumeRequest* consume_request);
 
-  void updatePullOffset(const MQMessageQueue& messageQueue, int64_t nextPullOffset);
+  void updatePullOffset(const MQMessageQueue& message_queue, int64_t next_pull_offset);
 
   void maybeAutoCommit();
-
-  void resetTopic(std::vector<MessageExtPtr>& msg_list);
-
   void commitAll();
 
   void updateConsumeOffset(const MQMessageQueue& mq, int64_t offset);
@@ -182,16 +180,16 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
  private:
   std::mutex mutex_;
 
-  uint64_t start_time_;
+  uint64_t start_time_;  //{UtilAll::currentTimeMillis()};
 
-  SubscriptionType subscription_type_;
+  SubscriptionType subscription_type_{SubscriptionType::NONE};
 
-  long consume_request_flow_control_times_;
-  long queue_flow_control_times_;
+  long consume_request_flow_control_times_{0};
+  long queue_flow_control_times_{0};
 
-  int64_t next_auto_commit_deadline_;
+  int64_t next_auto_commit_deadline_{-1};
 
-  bool auto_commit_;
+  bool auto_commit_{true};
 
   std::unique_ptr<MessageQueueListener> message_queue_listener_;
 

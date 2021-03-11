@@ -17,8 +17,8 @@
 #ifndef ROCKETMQ_MQMESSAGEEXT_H_
 #define ROCKETMQ_MQMESSAGEEXT_H_
 
-#include "MessageExt.h"
 #include "MQMessage.h"
+#include "MessageExt.h"
 
 namespace rocketmq {
 
@@ -29,7 +29,7 @@ class ROCKETMQCLIENT_API MQMessageExt : public MQMessage,          // base
                                         virtual public MessageExt  // interface
 {
  public:
-  static std::vector<MQMessageExt> from_list(std::vector<MessageExtPtr>& msg_list);
+  static std::vector<MQMessageExt> FromPtrList(std::vector<MessageExtPtr>& msg_list);
 
  public:
   MQMessageExt();

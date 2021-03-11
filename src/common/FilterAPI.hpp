@@ -28,7 +28,7 @@ namespace rocketmq {
 class FilterAPI {
  public:
   static SubscriptionData* buildSubscriptionData(const std::string& topic, const std::string& sub_string) {
-    // delete in Rebalance
+    // delete in out
     std::unique_ptr<SubscriptionData> subscription_data(new SubscriptionData(topic, sub_string));
 
     if (sub_string.empty() || SUB_ALL == sub_string) {

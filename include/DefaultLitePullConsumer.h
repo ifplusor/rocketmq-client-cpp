@@ -38,30 +38,28 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumer : public DefaultLitePullConsume
   bool isAutoCommit() const override;
   void setAutoCommit(bool auto_commit) override;
 
-  void subscribe(const std::string& topic, const std::string& subExpression) override;
-  void subscribe(const std::string& topic, const MessageSelector& selector) override;
-
-  void unsubscribe(const std::string& topic) override;
-
   std::vector<MQMessageExt> poll() override;
   std::vector<MQMessageExt> poll(long timeout) override;
 
+  void subscribe(const std::string& topic, const std::string& subExpression) override;
+  void subscribe(const std::string& topic, const MessageSelector& selector) override;
+  void unsubscribe(const std::string& topic) override;
+
   std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) override;
+  void assign(std::vector<MQMessageQueue>& message_queues) override;
 
-  void assign(const std::vector<MQMessageQueue>& messageQueues) override;
+  void seek(const MQMessageQueue& message_queue, int64_t offset) override;
+  void seekToBegin(const MQMessageQueue& message_queue) override;
+  void seekToEnd(const MQMessageQueue& message_queue) override;
 
-  void seek(const MQMessageQueue& messageQueue, int64_t offset) override;
-  void seekToBegin(const MQMessageQueue& messageQueue) override;
-  void seekToEnd(const MQMessageQueue& messageQueue) override;
+  int64_t offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) override;
 
-  int64_t offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) override;
-
-  void pause(const std::vector<MQMessageQueue>& messageQueues) override;
-  void resume(const std::vector<MQMessageQueue>& messageQueues) override;
+  void pause(const std::vector<MQMessageQueue>& message_queues) override;
+  void resume(const std::vector<MQMessageQueue>& message_queues) override;
 
   void commitSync() override;
 
-  int64_t committed(const MQMessageQueue& messageQueue) override;
+  int64_t committed(const MQMessageQueue& message_queue) override;
 
   void registerTopicMessageQueueChangeListener(
       const std::string& topic,

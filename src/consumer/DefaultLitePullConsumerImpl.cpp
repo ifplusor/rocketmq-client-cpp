@@ -16,6 +16,9 @@
  */
 #include "DefaultLitePullConsumerImpl.h"
 
+#include <mutex>
+#include <string>
+
 #ifndef WIN32
 #include <signal.h>
 #endif
@@ -26,6 +29,7 @@
 #include "MQAdminImpl.h"
 #include "MQClientAPIImpl.h"
 #include "MQClientInstance.h"
+#include "MQException.h"
 #include "NamespaceUtil.h"
 #include "ProcessQueue.h"
 #include "PullAPIWrapper.h"
@@ -175,17 +179,9 @@ DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(DefaultLitePullConsumer
 DefaultLitePullConsumerImpl::DefaultLitePullConsumerImpl(DefaultLitePullConsumerConfigPtr config, RPCHookPtr rpcHook)
     : MQClientImpl(config, rpcHook),
       start_time_(UtilAll::currentTimeMillis()),
-      subscription_type_(SubscriptionType::NONE),
-      consume_request_flow_control_times_(0),
-      queue_flow_control_times_(0),
-      next_auto_commit_deadline_(-1LL),
-      auto_commit_(true),
-      message_queue_listener_(nullptr),
       assigned_message_queue_(new AssignedMessageQueue()),
       scheduled_executor_service_("MonitorMessageQueueChangeThread", false),
-      rebalance_impl_(new RebalanceLitePullImpl(this)),
-      pull_api_wrapper_(nullptr),
-      offset_store_(nullptr) {}
+      rebalance_impl_(new RebalanceLitePullImpl(this)) {}
 
 DefaultLitePullConsumerImpl::~DefaultLitePullConsumerImpl() = default;
 
@@ -247,8 +243,9 @@ void DefaultLitePullConsumerImpl::start() {
       bool registerOK = client_instance_->registerConsumer(client_config_->group_name(), this);
       if (!registerOK) {
         service_state_ = CREATE_JUST;
-        THROW_MQEXCEPTION(MQClientException, "The cousumer group[" + client_config_->group_name() +
-                                                 "] has been created before, specify another name please.",
+        THROW_MQEXCEPTION(MQClientException,
+                          "The cousumer group[" + client_config_->group_name() +
+                              "] has been created before, specify another name please.",
                           -1);
       }
 
@@ -357,15 +354,15 @@ void DefaultLitePullConsumerImpl::operateAfterRunning() {
 
   for (const auto& it : topic_message_queue_change_listener_map_) {
     const auto& topic = it.first;
-    auto messageQueues = fetchMessageQueues(topic);
-    message_queues_for_topic_[topic] = std::move(messageQueues);
+    auto message_queues = fetchMessageQueues(topic);
+    message_queues_for_topic_[topic] = std::move(message_queues);
   }
   // client_instance_->checkClientInBroker();
 }
 
 void DefaultLitePullConsumerImpl::updateTopicSubscribeInfoWhenSubscriptionChanged() {
-  auto& subTable = rebalance_impl_->getSubscriptionInner();
-  for (const auto& it : subTable) {
+  auto& subscription_table = rebalance_impl_->getSubscriptionInner();
+  for (const auto& it : subscription_table) {
     const auto& topic = it.first;
     bool ret = client_instance_->updateTopicRouteInfoFromNameServer(topic);
     if (!ret) {
@@ -392,12 +389,62 @@ void DefaultLitePullConsumerImpl::shutdown() {
   }
 }
 
+std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll() {
+  return poll(getDefaultLitePullConsumerConfig()->poll_timeout_millis());
+}
+
+std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll(long timeout) {
+  // checkServiceState();
+  if (auto_commit_) {
+    maybeAutoCommit();
+  }
+
+  int64_t end_time = UtilAll::currentTimeMillis() + timeout;
+
+  auto consume_request = consume_request_cache_.pop_front(timeout, time_unit::milliseconds);
+  if (end_time - UtilAll::currentTimeMillis() > 0) {
+    while (consume_request != nullptr && consume_request->process_queue()->dropped()) {
+      consume_request = consume_request_cache_.pop_front();
+      if (end_time - UtilAll::currentTimeMillis() <= 0) {
+        break;
+      }
+    }
+  }
+
+  if (consume_request != nullptr && !consume_request->process_queue()->dropped()) {
+    auto& messages = consume_request->message_exts();
+    long offset = consume_request->process_queue()->removeMessage(messages);
+    assigned_message_queue_->updateConsumeOffset(consume_request->message_queue(), offset);
+    // if namespace not empty, reset Topic without namespace.
+    resetTopic(messages);
+    return MQMessageExt::FromPtrList(messages);
+  }
+
+  return std::vector<MQMessageExt>();
+}
+
+void DefaultLitePullConsumerImpl::resetTopic(std::vector<MessageExtPtr>& msg_list) {
+  if (msg_list.empty()) {
+    return;
+  }
+
+  // If namespace not null , reset Topic without namespace.
+  const auto& name_space = getDefaultLitePullConsumerConfig()->name_space();
+  if (!name_space.empty()) {
+    for (auto& message_ext : msg_list) {
+      message_ext->set_topic(NamespaceUtil::withoutNamespace(message_ext->topic(), name_space));
+    }
+  }
+}
+
 void DefaultLitePullConsumerImpl::subscribe(const std::string& topic, const std::string& subExpression) {
   std::lock_guard<std::mutex> lock(mutex_);  // synchronized
   try {
     if (topic.empty()) {
       THROW_MQEXCEPTION(MQClientException, "Topic can not be null or empty.", -1);
     }
+
+    // record subscription data
     set_subscription_type(SubscriptionType::SUBSCRIBE);
     auto* subscription_data = FilterAPI::buildSubscriptionData(topic, subExpression);
     rebalance_impl_->setSubscriptionData(topic, subscription_data);
@@ -479,9 +526,9 @@ int64_t DefaultLitePullConsumerImpl::nextPullOffset(const ProcessQueuePtr& proce
   return offset;
 }
 
-int64_t DefaultLitePullConsumerImpl::fetchConsumeOffset(const MQMessageQueue& messageQueue) {
+int64_t DefaultLitePullConsumerImpl::fetchConsumeOffset(const MQMessageQueue& message_queue) {
   // checkServiceState();
-  return rebalance_impl_->computePullFromWhere(messageQueue);
+  return rebalance_impl_->computePullFromWhere(message_queue);
 }
 
 void DefaultLitePullConsumerImpl::executePullRequestLater(PullRequestPtr pull_request, long delay) {
@@ -616,59 +663,11 @@ void DefaultLitePullConsumerImpl::updatePullOffset(const MQMessageQueue& message
   }
 }
 
-std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll() {
-  return poll(getDefaultLitePullConsumerConfig()->poll_timeout_millis());
-}
-
-std::vector<MQMessageExt> DefaultLitePullConsumerImpl::poll(long timeout) {
-  // checkServiceState();
-  if (auto_commit_) {
-    maybeAutoCommit();
-  }
-
-  int64_t endTime = UtilAll::currentTimeMillis() + timeout;
-
-  auto consume_request = consume_request_cache_.pop_front(timeout, time_unit::milliseconds);
-  if (endTime - UtilAll::currentTimeMillis() > 0) {
-    while (consume_request != nullptr && consume_request->process_queue()->dropped()) {
-      consume_request = consume_request_cache_.pop_front();
-      if (endTime - UtilAll::currentTimeMillis() <= 0) {
-        break;
-      }
-    }
-  }
-
-  if (consume_request != nullptr && !consume_request->process_queue()->dropped()) {
-    auto& messages = consume_request->message_exts();
-    long offset = consume_request->process_queue()->removeMessage(messages);
-    assigned_message_queue_->updateConsumeOffset(consume_request->message_queue(), offset);
-    // If namespace not null , reset Topic without namespace.
-    resetTopic(messages);
-    return MQMessageExt::from_list(messages);
-  }
-
-  return std::vector<MQMessageExt>();
-}
-
 void DefaultLitePullConsumerImpl::maybeAutoCommit() {
   auto now = UtilAll::currentTimeMillis();
   if (now >= next_auto_commit_deadline_) {
     commitAll();
     next_auto_commit_deadline_ = now + getDefaultLitePullConsumerConfig()->auto_commit_interval_millis();
-  }
-}
-
-void DefaultLitePullConsumerImpl::resetTopic(std::vector<MessageExtPtr>& msg_list) {
-  if (msg_list.empty()) {
-    return;
-  }
-
-  // If namespace not null , reset Topic without namespace.
-  const auto& name_space = getDefaultLitePullConsumerConfig()->name_space();
-  if (!name_space.empty()) {
-    for (auto& message_ext : msg_list) {
-      message_ext->set_topic(NamespaceUtil::withoutNamespace(message_ext->topic(), name_space));
-    }
   }
 }
 

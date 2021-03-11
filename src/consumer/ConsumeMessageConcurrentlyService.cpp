@@ -83,7 +83,7 @@ void ConsumeMessageConcurrentlyService::ConsumeRequest(std::vector<MessageExtPtr
         MessageAccessor::setConsumeStartTimeStamp(*msg, timestamp);
       }
     }
-    auto message_list = MQMessageExt::from_list(msgs);
+    auto message_list = MQMessageExt::FromPtrList(msgs);
     status = message_listener_->consumeMessage(message_list);
   } catch (const std::exception& e) {
     LOG_WARN_NEW("encounter unexpected exception when consume messages.\n{}", e.what());

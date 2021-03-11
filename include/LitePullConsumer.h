@@ -17,10 +17,10 @@
 #ifndef ROCKETMQ_LITEPULLCONSUMER_H_
 #define ROCKETMQ_LITEPULLCONSUMER_H_
 
-#include "TopicMessageQueueChangeListener.h"
-#include "MessageSelector.h"
 #include "MQMessageExt.h"
 #include "MQMessageQueue.h"
+#include "MessageSelector.h"
+#include "TopicMessageQueueChangeListener.h"
 
 namespace rocketmq {
 
@@ -38,36 +38,37 @@ class ROCKETMQCLIENT_API LitePullConsumer {
   virtual bool isAutoCommit() const = 0;
   virtual void setAutoCommit(bool auto_commit) = 0;
 
+  virtual std::vector<MQMessageExt> poll() = 0;
+  virtual std::vector<MQMessageExt> poll(long timeout) = 0;
+
   //
   // Automatic mode
 
   virtual void subscribe(const std::string& topic, const std::string& subExpression) = 0;
   virtual void subscribe(const std::string& topic, const MessageSelector& selector) = 0;
-
   virtual void unsubscribe(const std::string& topic) = 0;
-
-  virtual std::vector<MQMessageExt> poll() = 0;
-  virtual std::vector<MQMessageExt> poll(long timeout) = 0;
 
   //
   // Manually mode
 
   virtual std::vector<MQMessageQueue> fetchMessageQueues(const std::string& topic) = 0;
+  virtual void assign(std::vector<MQMessageQueue>& message_queues) = 0;
 
-  virtual void assign(const std::vector<MQMessageQueue>& messageQueues) = 0;
+  //
+  // Seek
 
-  virtual void seek(const MQMessageQueue& messageQueue, int64_t offset) = 0;
-  virtual void seekToBegin(const MQMessageQueue& messageQueue) = 0;
-  virtual void seekToEnd(const MQMessageQueue& messageQueue) = 0;
+  virtual void seek(const MQMessageQueue& message_queue, int64_t offset) = 0;
+  virtual void seekToBegin(const MQMessageQueue& message_queue) = 0;
+  virtual void seekToEnd(const MQMessageQueue& message_queue) = 0;
 
-  virtual int64_t offsetForTimestamp(const MQMessageQueue& messageQueue, int64_t timestamp) = 0;
+  virtual int64_t offsetForTimestamp(const MQMessageQueue& message_queue, int64_t timestamp) = 0;
 
-  virtual void pause(const std::vector<MQMessageQueue>& messageQueues) = 0;
-  virtual void resume(const std::vector<MQMessageQueue>& messageQueues) = 0;
+  virtual void pause(const std::vector<MQMessageQueue>& message_queues) = 0;
+  virtual void resume(const std::vector<MQMessageQueue>& message_queues) = 0;
 
   virtual void commitSync() = 0;
 
-  virtual int64_t committed(const MQMessageQueue& messageQueue) = 0;
+  virtual int64_t committed(const MQMessageQueue& message_queue) = 0;
 
   virtual void registerTopicMessageQueueChangeListener(
       const std::string& topic,

@@ -67,31 +67,31 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
       }
     } break;
     case CLUSTERING: {
-      std::vector<MQMessageQueue> mqAll;
-      if (!getTopicSubscribeInfo(topic, mqAll)) {
+      std::vector<MQMessageQueue> all_mqs;
+      if (!getTopicSubscribeInfo(topic, all_mqs)) {
         if (!UtilAll::isRetryTopic(topic)) {
           LOG_WARN_NEW("doRebalance, {}, but the topic[{}] not exist.", consumer_group_, topic);
         }
         return;
       }
 
-      std::vector<std::string> cidAll;
-      client_instance_->findConsumerIds(topic, consumer_group_, cidAll);
+      std::vector<std::string> all_cids;
+      client_instance_->findConsumerIds(topic, consumer_group_, all_cids);
 
-      if (cidAll.empty()) {
+      if (all_cids.empty()) {
         LOG_WARN_NEW("doRebalance, {} {}, get consumer id list failed", consumer_group_, topic);
         return;
       }
 
       // log
-      for (auto& cid : cidAll) {
+      for (auto& cid : all_cids) {
         LOG_INFO_NEW("client id:{} of topic:{}", cid, topic);
       }
 
       // allocate mqs
       std::vector<MQMessageQueue> allocateResult;
       try {
-        allocateResult = allocate_mq_strategy_(client_instance_->getClientId(), mqAll, cidAll);
+        allocateResult = allocate_mq_strategy_(client_instance_->getClientId(), all_mqs, all_cids);
       } catch (MQException& e) {
         LOG_ERROR_NEW("encounter exception when invoke AllocateMQStrategy: {}", e.what());
         return;
@@ -103,12 +103,12 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
         LOG_INFO_NEW(
             "rebalanced result changed. group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, "
             "rebalanceResultSize={}, rebalanceResultSet:",
-            consumer_group_, topic, client_instance_->getClientId(), mqAll.size(), cidAll.size(),
+            consumer_group_, topic, client_instance_->getClientId(), all_mqs.size(), all_cids.size(),
             allocateResult.size());
         for (auto& mq : allocateResult) {
           LOG_INFO_NEW("allocate mq:{}", mq.toString());
         }
-        messageQueueChanged(topic, mqAll, allocateResult);
+        messageQueueChanged(topic, all_mqs, allocateResult);
       }
     } break;
     default:
