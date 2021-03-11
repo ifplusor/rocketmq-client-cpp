@@ -18,7 +18,7 @@
 
 #include "Logging.h"
 #include "OffsetStore.h"
-#include "RebalanceImpl.h"
+#include "RebalancePushImpl.h"
 #include "UtilAll.h"
 
 namespace rocketmq {

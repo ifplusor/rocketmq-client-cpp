@@ -18,50 +18,14 @@
 #define ROCKETMQ_CONSUMER_ASSIGNEDMESSAGEQUEUE_H_
 
 #include <algorithm>  // std::move, std::binary_search
-#include <mutex>      // std::mutex
+#include <memory>
+#include <mutex>  // std::mutex
 
 #include "MQMessageQueue.h"
 #include "ProcessQueue.h"
-#include "RebalanceImpl.h"
+#include "RebalanceLitePullImpl.h"
 
 namespace rocketmq {
-
-class MessageQueueState {
- public:
-  MessageQueueState(const MQMessageQueue& message_queue, ProcessQueuePtr process_queue)
-      : message_queue_(message_queue),
-        process_queue_(std::move(process_queue)),
-        paused_(false),
-        pull_offset_(-1),
-        consume_offset_(-1),
-        seek_offset_(-1) {}
-
-  inline const MQMessageQueue& message_queue() const { return message_queue_; }
-  inline void set_message_queue(const MQMessageQueue message_queue) { message_queue_ = message_queue; }
-
-  inline ProcessQueuePtr process_queue() const { return process_queue_; }
-  inline void process_queue(ProcessQueuePtr process_queue) { process_queue_ = std::move(process_queue); }
-
-  inline bool is_paused() const { return paused_; }
-  inline void set_paused(bool paused) { paused_ = paused; }
-
-  inline int64_t pull_offset() const { return pull_offset_; }
-  inline void set_pull_offset(int64_t pull_offset) { pull_offset_ = pull_offset; }
-
-  inline int64_t consume_offset() const { return consume_offset_; }
-  inline void set_consume_offset(int64_t consume_offset) { consume_offset_ = consume_offset; }
-
-  inline int64_t seek_offset() const { return seek_offset_; }
-  inline void set_seek_offset(int64_t seek_offset) { seek_offset_ = seek_offset; }
-
- private:
-  MQMessageQueue message_queue_;
-  ProcessQueuePtr process_queue_;
-  volatile bool paused_;
-  volatile int64_t pull_offset_;
-  volatile int64_t consume_offset_;
-  volatile int64_t seek_offset_;
-};
 
 class AssignedMessageQueue {
  public:
@@ -78,8 +42,8 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.is_paused();
+      auto& pq = it->second;
+      return pq->paused();
     }
     return true;
   }
@@ -89,8 +53,8 @@ class AssignedMessageQueue {
     for (const auto& message_queue : message_queues) {
       auto it = assigned_message_queue_state_.find(message_queue);
       if (it != assigned_message_queue_state_.end()) {
-        auto& message_queue_state = it->second;
-        message_queue_state.set_paused(true);
+        auto& pq = it->second;
+        pq->set_paused(true);
       }
     }
   }
@@ -100,8 +64,8 @@ class AssignedMessageQueue {
     for (const auto& message_queue : message_queues) {
       auto it = assigned_message_queue_state_.find(message_queue);
       if (it != assigned_message_queue_state_.end()) {
-        auto& message_queue_state = it->second;
-        message_queue_state.set_paused(false);
+        auto& pq = it->second;
+        pq->set_paused(false);
       }
     }
   }
@@ -110,8 +74,7 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.process_queue();
+      return it->second;
     }
     return nullptr;
   }
@@ -120,8 +83,8 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.pull_offset();
+      auto& pq = it->second;
+      return pq->pull_offset();
     }
     return -1;
   }
@@ -130,8 +93,8 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.set_pull_offset(offset);
+      auto& pq = it->second;
+      return pq->set_pull_offset(offset);
     }
   }
 
@@ -139,8 +102,8 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.consume_offset();
+      auto& pq = it->second;
+      return pq->consume_offset();
     }
     return -1;
   }
@@ -149,8 +112,8 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.set_consume_offset(offset);
+      auto& pq = it->second;
+      return pq->set_consume_offset(offset);
     }
   }
 
@@ -158,8 +121,8 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.seek_offset();
+      auto& pq = it->second;
+      return pq->seek_offset();
     }
     return -1;
   }
@@ -168,50 +131,80 @@ class AssignedMessageQueue {
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     auto it = assigned_message_queue_state_.find(message_queue);
     if (it != assigned_message_queue_state_.end()) {
-      auto& message_queue_state = it->second;
-      return message_queue_state.set_seek_offset(offset);
+      auto& pq = it->second;
+      return pq->set_seek_offset(offset);
     }
   }
 
-  void updateAssignedMessageQueue(const std::string& topic, std::vector<MQMessageQueue>& assigned) {
+  std::vector<PullRequestPtr> updateAssignedMessageQueue(const std::string& topic,
+                                                         std::vector<MQMessageQueue>& assigned) {
     std::sort(assigned.begin(), assigned.end());
     std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
     for (auto it = assigned_message_queue_state_.begin(); it != assigned_message_queue_state_.end();) {
       auto& mq = it->first;
       if (mq.topic() == topic) {
         if (!std::binary_search(assigned.begin(), assigned.end(), mq)) {
+          auto& pq = it->second;
+          pq->set_dropped(true);
+          if (rebalance_impl_ != nullptr) {
+            rebalance_impl_->removeUnnecessaryMessageQueue(mq, pq);
+          }
           it = assigned_message_queue_state_.erase(it);
           continue;
         }
       }
       it++;
     }
-    addAssignedMessageQueue(assigned);
+    return addAssignedMessageQueue(assigned);
+  }
+
+  std::vector<PullRequestPtr> updateAssignedMessageQueue(std::vector<MQMessageQueue>& assigned) {
+    std::sort(assigned.begin(), assigned.end());
+    std::lock_guard<std::mutex> lock(assigned_message_queue_state_mutex_);
+    for (auto it = assigned_message_queue_state_.begin(); it != assigned_message_queue_state_.end();) {
+      auto& mq = it->first;
+      if (!std::binary_search(assigned.begin(), assigned.end(), mq)) {
+        auto& pq = it->second;
+        pq->set_dropped(true);
+        if (rebalance_impl_ != nullptr) {
+          rebalance_impl_->removeUnnecessaryMessageQueue(mq, pq);
+        }
+        it = assigned_message_queue_state_.erase(it);
+        continue;
+      }
+      it++;
+    }
+    return addAssignedMessageQueue(assigned);
   }
 
  private:
-  void addAssignedMessageQueue(const std::vector<MQMessageQueue>& assigned) {
+  std::vector<PullRequestPtr> addAssignedMessageQueue(const std::vector<MQMessageQueue>& assigned) {
+    std::vector<PullRequestPtr> pull_request_list;
     for (const auto& message_queue : assigned) {
       if (assigned_message_queue_state_.find(message_queue) == assigned_message_queue_state_.end()) {
-        ProcessQueuePtr process_queue;
+        ProcessQueuePtr process_queue = std::make_shared<ProcessQueue>(message_queue);
         if (rebalance_impl_ != nullptr) {
-          process_queue = rebalance_impl_->getProcessQueue(message_queue);
+          rebalance_impl_->removeDirtyOffset(message_queue);
         }
-        if (nullptr == process_queue) {
-          process_queue.reset(new ProcessQueue(message_queue));
-        }
-        assigned_message_queue_state_.emplace(message_queue, MessageQueueState(message_queue, process_queue));
+        assigned_message_queue_state_.emplace(message_queue, process_queue);
+
+        auto pull_request = std::make_shared<PullRequest>();
+        pull_request->set_message_queue(message_queue);
+        pull_request->set_process_queue(process_queue);
+        pull_request_list.push_back(std::move(pull_request));
       }
     }
+    return pull_request_list;
   }
 
  public:
-  inline void set_rebalance_impl(RebalanceImpl* rebalance_impl) { rebalance_impl_ = rebalance_impl; }
+  inline void set_rebalance_impl(RebalanceLitePullImpl* rebalance_impl) { rebalance_impl_ = rebalance_impl; }
 
  private:
-  std::map<MQMessageQueue, MessageQueueState> assigned_message_queue_state_;
+  std::map<MQMessageQueue, ProcessQueuePtr> assigned_message_queue_state_;
   std::mutex assigned_message_queue_state_mutex_;
-  RebalanceImpl* rebalance_impl_;
+
+  RebalanceLitePullImpl* rebalance_impl_;
 };
 
 }  // namespace rocketmq

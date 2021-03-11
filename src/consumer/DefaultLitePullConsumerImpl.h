@@ -36,7 +36,7 @@ class AssignedMessageQueue;
 class OffsetStore;
 class PullAPIWrapper;
 class PullResult;
-class RebalanceImpl;
+class RebalanceLitePullImpl;
 
 class DefaultLitePullConsumerImpl;
 typedef std::shared_ptr<DefaultLitePullConsumerImpl> DefaultLitePullConsumerImplPtr;
@@ -218,7 +218,7 @@ class DefaultLitePullConsumerImpl : public std::enable_shared_from_this<DefaultL
   scheduled_thread_pool_executor scheduled_thread_pool_executor_;
   scheduled_thread_pool_executor scheduled_executor_service_;
 
-  std::unique_ptr<RebalanceImpl> rebalance_impl_;
+  std::unique_ptr<RebalanceLitePullImpl> rebalance_impl_;
   std::unique_ptr<PullAPIWrapper> pull_api_wrapper_;
   std::unique_ptr<OffsetStore> offset_store_;
 };

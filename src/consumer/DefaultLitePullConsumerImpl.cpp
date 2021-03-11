@@ -483,7 +483,7 @@ void DefaultLitePullConsumerImpl::shutdown() {
       scheduled_thread_pool_executor_.shutdown();
       scheduled_executor_service_.shutdown();
       client_instance_->shutdown();
-      rebalance_impl_->destroy();
+      rebalance_impl_->shutdown();
       service_state_ = ServiceState::SHUTDOWN_ALREADY;
       LOG_INFO_NEW("the consumer [{}] shutdown OK", client_config_->group_name());
       break;
@@ -842,15 +842,15 @@ ConsumerRunningInfo* DefaultLitePullConsumerImpl::consumerRunningInfo() {
 
   info->setSubscriptionSet(subscriptions());
 
-  auto processQueueTable = rebalance_impl_->getProcessQueueTable();
-  for (const auto& it : processQueueTable) {
-    const auto& mq = it.first;
-    const auto& pq = it.second;
-
-    ProcessQueueInfo pq_info;
-    pq_info.setCommitOffset(offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE));
-    pq->fillProcessQueueInfo(pq_info);
-    info->setMqTable(mq, pq_info);
+  auto mqs = assigned_message_queue_->messageQueues();
+  for (const auto& mq : mqs) {
+    auto pq = assigned_message_queue_->getProcessQueue(mq);
+    if (pq != nullptr && !pq->dropped()) {
+      ProcessQueueInfo pq_info;
+      pq_info.setCommitOffset(offset_store_->readOffset(mq, MEMORY_FIRST_THEN_STORE));
+      pq->fillProcessQueueInfo(pq_info);
+      info->setMqTable(mq, pq_info);
+    }
   }
 
   return info;

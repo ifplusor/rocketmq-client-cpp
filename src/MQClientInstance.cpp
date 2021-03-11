@@ -28,7 +28,7 @@
 #include "PermName.h"
 #include "PullMessageService.hpp"
 #include "PullRequest.h"
-#include "RebalanceImpl.h"
+#include "RebalancePushImpl.h"
 #include "RebalanceService.h"
 #include "TcpRemotingClient.h"
 #include "TopicPublishInfo.hpp"

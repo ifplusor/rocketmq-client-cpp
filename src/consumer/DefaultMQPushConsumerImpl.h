@@ -21,11 +21,11 @@
 #include <string>
 #include <thread>
 
-#include "concurrent/executor.hpp"
 #include "DefaultMQPushConsumer.h"
 #include "MQClientImpl.h"
 #include "MQConsumerInner.h"
 #include "PullRequest.h"
+#include "concurrent/executor.hpp"
 
 namespace rocketmq {
 
@@ -33,7 +33,7 @@ class AsyncPullCallback;
 class ConsumeMsgService;
 class OffsetStore;
 class PullAPIWrapper;
-class RebalanceImpl;
+class RebalancePushImpl;
 class SubscriptionData;
 
 class DefaultMQPushConsumerImpl;
@@ -134,7 +134,7 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
     return messageListenerDefaultly;
   }
 
-  inline RebalanceImpl* getRebalanceImpl() const { return rebalance_impl_.get(); }
+  inline RebalancePushImpl* getRebalanceImpl() const { return rebalance_impl_.get(); }
 
   inline OffsetStore* getOffsetStore() const { return offset_store_.get(); }
 
@@ -153,7 +153,7 @@ class DefaultMQPushConsumerImpl : public std::enable_shared_from_this<DefaultMQP
   MQMessageListener* message_listener_;
   std::unique_ptr<ConsumeMsgService> consume_service_;
 
-  std::unique_ptr<RebalanceImpl> rebalance_impl_;
+  std::unique_ptr<RebalancePushImpl> rebalance_impl_;
   std::unique_ptr<PullAPIWrapper> pull_api_wrapper_;
   std::unique_ptr<OffsetStore> offset_store_;
 };

@@ -21,16 +21,16 @@
 
 #include "AllocateMQStrategy.h"
 #include "ConsumeType.h"
-#include "MQException.h"
+#include "MQAdmin.h"
 #include "MQClientInstance.h"
+#include "MQException.h"
 #include "MQMessageQueue.h"
+#include "OffsetStore.h"
 #include "ProcessQueue.h"
-#include "PullRequest.h"
 #include "protocol/heartbeat/SubscriptionData.hpp"
 
 namespace rocketmq {
 
-typedef std::map<MQMessageQueue, ProcessQueuePtr> MQ2PQ;
 typedef std::map<std::string, std::vector<MQMessageQueue>> TOPIC2MQS;
 typedef std::map<std::string, SubscriptionData*> TOPIC2SD;
 typedef std::map<std::string, std::vector<MQMessageQueue>> BROKER2MQS;
@@ -43,34 +43,32 @@ class RebalanceImpl {
                 MQClientInstance* clientInstance);
   virtual ~RebalanceImpl();
 
-  void unlock(const MQMessageQueue& mq, const bool oneway = false);
-  void unlockAll(const bool oneway = false);
-
-  bool lock(const MQMessageQueue& mq);
-  void lockAll();
-
-  void doRebalance(const bool isOrder = false);
-
-  void destroy();
-
- public:  // RebalanceImpl Interface
+ public:
+  virtual void shutdown(){};
   virtual ConsumeType consumeType() = 0;
-  virtual bool removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq) = 0;
-  virtual void removeDirtyOffset(const MQMessageQueue& mq) = 0;
-  virtual int64_t computePullFromWhere(const MQMessageQueue& mq) = 0;
-  virtual void dispatchPullRequest(const std::vector<PullRequestPtr>& pullRequestList) = 0;
-  virtual void messageQueueChanged(const std::string& topic,
-                                   std::vector<MQMessageQueue>& mqAll,
-                                   std::vector<MQMessageQueue>& mqDivided) = 0;
+  virtual std::vector<MQMessageQueue> getAllocatedMQ() = 0;
+
+ public:
+  void doRebalance(bool orderly = false);
 
  private:
-  std::shared_ptr<BROKER2MQS> buildProcessQueueTableByBrokerName();
+  void rebalanceByTopic(const std::string& topic, bool orderly);
 
-  void rebalanceByTopic(const std::string& topic, const bool isOrder);
-  void truncateMessageQueueNotMyTopic();
-  bool updateProcessQueueTableInRebalance(const std::string& topic,
-                                          std::vector<MQMessageQueue>& mqSet,
-                                          const bool isOrder);
+ protected:
+  virtual bool updateMessageQueueInRebalance(const std::string& topic,
+                                             std::vector<MQMessageQueue>& allocated_mqs,
+                                             bool orderly) = 0;
+  virtual void messageQueueChanged(const std::string& topic,
+                                   std::vector<MQMessageQueue>& all_mqs,
+                                   std::vector<MQMessageQueue>& allocated_mqs) = 0;
+  virtual void truncateMessageQueueNotMyTopic() = 0;
+
+ protected:
+  int64_t computePullFromWhereImpl(const MQMessageQueue& mq,
+                                   ConsumeFromWhere consume_from_where,
+                                   const std::string& consume_timestamp,
+                                   OffsetStore& offset_store,
+                                   MQAdmin& admin);
 
  public:
   TOPIC2SD& getSubscriptionInner();
@@ -79,13 +77,6 @@ class RebalanceImpl {
 
   bool getTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& mqs);
   void setTopicSubscribeInfo(const std::string& topic, std::vector<MQMessageQueue>& mqs);
-
-  void removeProcessQueue(const MQMessageQueue& mq);
-  ProcessQueuePtr removeProcessQueueDirectly(const MQMessageQueue& mq);
-  ProcessQueuePtr putProcessQueueIfAbsent(const MQMessageQueue& mq, ProcessQueuePtr pq);
-  ProcessQueuePtr getProcessQueue(const MQMessageQueue& mq);
-  MQ2PQ getProcessQueueTable();
-  std::vector<MQMessageQueue> getAllocatedMQ();
 
  public:
   inline void set_consumer_group(const std::string& groupname) { consumer_group_ = groupname; }
@@ -96,9 +87,6 @@ class RebalanceImpl {
   inline void set_client_instance(MQClientInstance* instance) { client_instance_ = instance; }
 
  protected:
-  MQ2PQ process_queue_table_;
-  std::mutex process_queue_table_mutex_;
-
   TOPIC2MQS topic_subscribe_info_table_;
   std::mutex topic_subscribe_info_table_mutex_;
 

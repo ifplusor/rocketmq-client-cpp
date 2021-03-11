@@ -25,6 +25,14 @@ namespace rocketmq {
 RebalanceLitePullImpl::RebalanceLitePullImpl(DefaultLitePullConsumerImpl* consumerImpl)
     : RebalanceImpl(null, CLUSTERING, AllocateMQAveragely, nullptr), lite_pull_consumer_impl_(consumerImpl) {}
 
+void RebalanceLitePullImpl::shutdown() {}
+
+bool RebalanceLitePullImpl::updateMessageQueueInRebalance(const std::string& topic,
+                                                          std::vector<MQMessageQueue>& allocated_mqs,
+                                                          bool orderly) {
+  return true;
+}
+
 bool RebalanceLitePullImpl::removeUnnecessaryMessageQueue(const MQMessageQueue& mq, ProcessQueuePtr pq) {
   lite_pull_consumer_impl_->getOffsetStore()->persist(mq);
   lite_pull_consumer_impl_->getOffsetStore()->removeOffset(mq);
@@ -36,73 +44,11 @@ void RebalanceLitePullImpl::removeDirtyOffset(const MQMessageQueue& mq) {
 }
 
 int64_t RebalanceLitePullImpl::computePullFromWhere(const MQMessageQueue& mq) {
-  int64_t result = -1;
-  ConsumeFromWhere consumeFromWhere =
-      lite_pull_consumer_impl_->getDefaultLitePullConsumerConfig()->consume_from_where();
-  OffsetStore* offsetStore = lite_pull_consumer_impl_->getOffsetStore();
-  switch (consumeFromWhere) {
-    default:
-    case CONSUME_FROM_LAST_OFFSET: {
-      long lastOffset = offsetStore->readOffset(mq, ReadOffsetType::MEMORY_FIRST_THEN_STORE);
-      if (lastOffset >= 0) {
-        result = lastOffset;
-      } else if (-1 == lastOffset) {
-        if (UtilAll::isRetryTopic(mq.topic())) {  // First start, no offset
-          result = 0;
-        } else {
-          try {
-            result = lite_pull_consumer_impl_->maxOffset(mq);
-          } catch (MQClientException& e) {
-            result = -1;
-          }
-        }
-      } else {
-        result = -1;
-      }
-      break;
-    }
-    case CONSUME_FROM_FIRST_OFFSET: {
-      long lastOffset = offsetStore->readOffset(mq, ReadOffsetType::MEMORY_FIRST_THEN_STORE);
-      if (lastOffset >= 0) {
-        result = lastOffset;
-      } else if (-1 == lastOffset) {
-        result = 0L;
-      } else {
-        result = -1;
-      }
-      break;
-    }
-    case CONSUME_FROM_TIMESTAMP: {
-      long lastOffset = offsetStore->readOffset(mq, ReadOffsetType::MEMORY_FIRST_THEN_STORE);
-      if (lastOffset >= 0) {
-        result = lastOffset;
-      } else if (-1 == lastOffset) {
-        if (UtilAll::isRetryTopic(mq.topic())) {
-          try {
-            result = lite_pull_consumer_impl_->maxOffset(mq);
-          } catch (MQClientException& e) {
-            result = -1;
-          }
-        } else {
-          try {
-            // FIXME: parseDate by YYYYMMDDHHMMSS
-            auto timestamp =
-                std::stoull(lite_pull_consumer_impl_->getDefaultLitePullConsumerConfig()->consume_timestamp());
-            result = lite_pull_consumer_impl_->searchOffset(mq, timestamp);
-          } catch (MQClientException& e) {
-            result = -1;
-          }
-        }
-      } else {
-        result = -1;
-      }
-      break;
-    }
-  }
-  return result;
+  return RebalanceImpl::computePullFromWhereImpl(
+      mq, lite_pull_consumer_impl_->getDefaultLitePullConsumerConfig()->consume_from_where(),
+      lite_pull_consumer_impl_->getDefaultLitePullConsumerConfig()->consume_timestamp(),
+      *lite_pull_consumer_impl_->getOffsetStore(), *lite_pull_consumer_impl_);
 }
-
-void RebalanceLitePullImpl::dispatchPullRequest(const std::vector<PullRequestPtr>& pullRequestList) {}
 
 void RebalanceLitePullImpl::messageQueueChanged(const std::string& topic,
                                                 std::vector<MQMessageQueue>& mqAll,
@@ -115,6 +61,13 @@ void RebalanceLitePullImpl::messageQueueChanged(const std::string& topic,
       LOG_ERROR_NEW("messageQueueChanged exception {}", e.what());
     }
   }
+}
+
+void RebalanceLitePullImpl::truncateMessageQueueNotMyTopic() {}
+
+std::vector<MQMessageQueue> RebalanceLitePullImpl::getAllocatedMQ() {
+  std::vector<MQMessageQueue> mqs;
+  return mqs;
 }
 
 }  // namespace rocketmq
