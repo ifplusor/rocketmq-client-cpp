@@ -70,22 +70,6 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumerConfigProxy : public MQClientCon
     dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_pull_batch_size(pull_batch_size);
   }
 
-  int pull_thread_nums() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->pull_thread_nums();
-  }
-
-  void set_pull_thread_nums(int pullThreadNums) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_pull_thread_nums(pullThreadNums);
-  }
-
-  bool long_polling_enable() const override {
-    return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->long_polling_enable();
-  }
-
-  void set_long_polling_enable(bool long_polling_enable) override {
-    dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->set_long_polling_enable(long_polling_enable);
-  }
-
   long consumer_pull_timeout_millis() const override {
     return dynamic_cast<DefaultLitePullConsumerConfig*>(client_config_.get())->consumer_pull_timeout_millis();
   }

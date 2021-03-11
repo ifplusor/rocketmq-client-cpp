@@ -37,8 +37,6 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
         consume_timestamp_(UtilAll::to_string(UtilAll::currentTimeMillis() - (1000 * 60 * 30))),
         auto_commit_interval_millis_(5 * 1000),
         pull_batch_size_(10),
-        pull_thread_nums_(20),
-        long_polling_enable_(true),
         consumer_pull_timeout_millis_(1000 * 10),
         consumer_timeout_millis_when_suspend_(1000 * 30),
         broker_suspend_max_time_millis_(1000 * 20),
@@ -65,12 +63,6 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
 
   int pull_batch_size() const override { return pull_batch_size_; }
   void set_pull_batch_size(int pull_batch_size) override { pull_batch_size_ = pull_batch_size; }
-
-  int pull_thread_nums() const override { return pull_thread_nums_; }
-  void set_pull_thread_nums(int pullThreadNums) override { pull_thread_nums_ = pullThreadNums; }
-
-  bool long_polling_enable() const override { return long_polling_enable_; }
-  void set_long_polling_enable(bool long_polling_enable) override { long_polling_enable_ = long_polling_enable; }
 
   long consumer_pull_timeout_millis() const override { return consumer_pull_timeout_millis_; }
   void set_consumer_pull_timeout_millis(long consumer_pull_timeout_millis) override {
@@ -122,10 +114,6 @@ class DefaultLitePullConsumerConfigImpl : virtual public DefaultLitePullConsumer
   long auto_commit_interval_millis_;
 
   int pull_batch_size_;
-
-  int pull_thread_nums_;
-
-  bool long_polling_enable_;
 
   long consumer_pull_timeout_millis_;
   long consumer_timeout_millis_when_suspend_;

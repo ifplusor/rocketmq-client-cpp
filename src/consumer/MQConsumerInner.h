@@ -21,6 +21,8 @@
 #include <vector>
 
 #include "ConsumeType.h"
+#include "MQMessageQueue.h"
+#include "PullRequest.h"
 #include "protocol/heartbeat/SubscriptionData.hpp"
 
 namespace rocketmq {
@@ -47,6 +49,8 @@ class MQConsumerInner {
 
   // offset persistence
   virtual void persistConsumerOffset() = 0;
+
+  virtual void pullMessage(PullRequestPtr pull_request) = 0;
 
   virtual ConsumerRunningInfo* consumerRunningInfo() = 0;
 };

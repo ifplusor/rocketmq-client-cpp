@@ -46,12 +46,6 @@ class ROCKETMQCLIENT_API DefaultLitePullConsumerConfig : virtual public MQClient
   virtual int pull_batch_size() const = 0;
   virtual void set_pull_batch_size(int pull_batch_size) = 0;
 
-  virtual int pull_thread_nums() const = 0;
-  virtual void set_pull_thread_nums(int pull_thread_nums) = 0;
-
-  virtual bool long_polling_enable() const = 0;
-  virtual void set_long_polling_enable(bool long_polling_enable) = 0;
-
   virtual long consumer_pull_timeout_millis() const = 0;
   virtual void set_consumer_pull_timeout_millis(long consumer_pull_timeout_millis) = 0;
 
