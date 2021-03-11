@@ -185,6 +185,10 @@ struct sockaddr* copySocketAddress(struct sockaddr* dst, const struct sockaddr* 
   return dst;
 }
 
+struct sockaddr* GetSelfIP() {
+  return lookupNameServers(UtilAll::getLocalHostName());
+}
+
 uint64_t h2nll(uint64_t v) {
   return ByteOrderUtil::NorminalBigEndian(v);
 }

@@ -46,6 +46,8 @@ struct sockaddr* lookupNameServers(const std::string& hostname);
 
 struct sockaddr* copySocketAddress(struct sockaddr* dst, const struct sockaddr* src);
 
+struct sockaddr* GetSelfIP();
+
 uint64_t h2nll(uint64_t v);
 uint64_t n2hll(uint64_t v);
 

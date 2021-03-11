@@ -228,7 +228,7 @@ int UtilAll::Split(std::vector<std::string>& ret_, const std::string& strIn, con
   return ret_.size();
 }
 
-std::string UtilAll::getLocalHostName() {
+const std::string& UtilAll::getLocalHostName() {
   if (sLocalHostName.empty()) {
     char name[1024];
     if (::gethostname(name, sizeof(name)) != 0) {
@@ -239,41 +239,16 @@ std::string UtilAll::getLocalHostName() {
   return sLocalHostName;
 }
 
-std::string UtilAll::getLocalAddress() {
+const std::string& UtilAll::getLocalAddress() {
   if (sLocalIpAddress.empty()) {
-    auto hostname = getLocalHostName();
-    if (!hostname.empty()) {
-      try {
-        sLocalIpAddress = socketAddress2String(lookupNameServers(hostname));
-      } catch (std::exception& e) {
-        LOG_WARN(e.what());
-        sLocalIpAddress = "127.0.0.1";
-      }
+    try {
+      sLocalIpAddress = socketAddress2String(GetSelfIP());
+    } catch (std::exception& e) {
+      LOG_WARN(e.what());
+      sLocalIpAddress = "127.0.0.1";
     }
   }
   return sLocalIpAddress;
-}
-
-uint32_t UtilAll::getIP() {
-  std::string ip = UtilAll::getLocalAddress();
-  if (ip.empty()) {
-    return 0;
-  }
-
-  char* ip_str = new char[ip.length() + 1];
-  std::strncpy(ip_str, ip.c_str(), ip.length());
-  ip_str[ip.length()] = '\0';
-
-  int i = 3;
-  uint32_t nResult = 0;
-  for (char* token = std::strtok(ip_str, "."); token != nullptr && i >= 0; token = std::strtok(nullptr, ".")) {
-    uint32_t n = std::atoi(token);
-    nResult |= n << (8 * i--);
-  }
-
-  delete[] ip_str;
-
-  return nResult;
 }
 
 std::string UtilAll::getHomeDirectory() {
