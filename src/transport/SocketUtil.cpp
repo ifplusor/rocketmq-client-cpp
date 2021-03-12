@@ -45,12 +45,14 @@ thread_local static sockaddr_union sin_buf;
 struct sockaddr* ipPort2SocketAddress(const ByteArray& ip, uint16_t port) {
   if (ip.size() == 4) {
     struct sockaddr_in* sin = &sin_buf.sin;
+    std::memset(sin, 0, sizeof(struct sockaddr_in));
     sin->sin_family = AF_INET;
     sin->sin_port = ByteOrderUtil::NorminalBigEndian<uint16_t>(port);
     ByteOrderUtil::Read<decltype(sin->sin_addr)>(&sin->sin_addr, ip.array());
     return (struct sockaddr*)sin;
   } else if (ip.size() == 16) {
     struct sockaddr_in6* sin6 = &sin_buf.sin6;
+    std::memset(sin6, 0, sizeof(struct sockaddr_in6));
     sin6->sin6_family = AF_INET6;
     sin6->sin6_port = ByteOrderUtil::NorminalBigEndian<uint16_t>(port);
     ByteOrderUtil::Read<decltype(sin6->sin6_addr)>(&sin6->sin6_addr, ip.array());
@@ -60,18 +62,30 @@ struct sockaddr* ipPort2SocketAddress(const ByteArray& ip, uint16_t port) {
 }
 
 struct sockaddr* string2SocketAddress(const std::string& addr) {
+  if (addr.empty()) {
+    return nullptr;
+  }
   std::string::size_type start_pos = addr[0] == '/' ? 1 : 0;
-  auto colon_pos = addr.find_last_of(":");
+  auto bracket_pos = addr.find_last_of(']');
+  auto colon_pos = std::string::npos;
+  if (bracket_pos == std::string::npos) {  // ipv4
+    colon_pos = addr.find_last_of(':');
+  } else if (bracket_pos != addr.size() - 1) {  // ipv6 with port
+    colon_pos = addr.substr(bracket_pos + 1).find(':');
+  }
+  if (colon_pos == std::string::npos) {
+    colon_pos = addr.size();
+  }
   std::string host = addr.substr(start_pos, colon_pos - start_pos);
-  std::string port = addr.substr(colon_pos + 1, addr.length() - colon_pos);
+  std::string port = colon_pos >= addr.size() ? "0" : addr.substr(colon_pos + 1, addr.length() - colon_pos);
   auto* sa = lookupNameServers(host);
   if (sa != nullptr) {
     if (sa->sa_family == AF_INET) {
       auto* sin = (struct sockaddr_in*)sa;
-      sin->sin_port = htons((uint16_t)std::stoi(port));
+      sin->sin_port = htons(static_cast<uint16_t>(std::stol(port)));
     } else {
       auto* sin6 = (struct sockaddr_in6*)sa;
-      sin6->sin6_port = htons((uint16_t)std::stoi(port));
+      sin6->sin6_port = htons(static_cast<uint16_t>(std::stol(port)));
     }
   }
   return sa;
@@ -105,11 +119,13 @@ std::string socketAddress2String(const struct sockaddr* addr) {
     throw std::runtime_error("don't support non-inet Address families.");
   }
 
-  if (!address.empty() && port != 0) {
+  if (!address.empty()) {
     if (addr->sa_family == AF_INET6) {
       address = "[" + address + "]";
     }
-    address += ":" + UtilAll::to_string(port);
+    if (port != 0) {
+      address += ":" + UtilAll::to_string(port);
+    }
   }
 
   return address;
@@ -159,7 +175,9 @@ struct sockaddr* copySocketAddress(struct sockaddr* dst, const struct sockaddr* 
     if (dst == nullptr || dst->sa_family != src->sa_family) {
       dst = (struct sockaddr*)std::realloc(dst, sizeof(union sockaddr_union));
     }
-    std::memcpy(dst, src, sockaddr_size(src));
+    if (dst != nullptr) {
+      std::memcpy(dst, src, sockaddr_size(src));
+    }
   } else {
     free(dst);
     dst = nullptr;
