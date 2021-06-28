@@ -49,6 +49,7 @@
 #include "TransactionMQProducerConfig.h"
 #include "UtilAll.h"
 #include "Validators.h"
+#include "common/GSL.hpp"
 #include "protocol/header/CheckTransactionStateRequestHeader.hpp"
 #include "protocol/header/EndTransactionRequestHeader.hpp"
 #include "protocol/header/SendMessageRequestHeader.hpp"
@@ -164,6 +165,7 @@ SendResult DefaultMQProducerImpl::Send(const MessagePtr& message, const MessageQ
 }
 
 void DefaultMQProducerImpl::Send(const MessagePtr& message, SendCallback send_callback, int64_t timeout) noexcept {
+  Expects(send_callback != nullptr);
   async_send_executor_->submit(
 #if __cplusplus >= 201402L
       [this, message, send_callback = std::move(send_callback), timeout]
@@ -183,6 +185,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message,
                                  const MessageQueue& message_queue,
                                  SendCallback send_callback,
                                  int64_t timeout) noexcept {
+  Expects(send_callback != nullptr);
   async_send_executor_->submit(
 #if __cplusplus >= 201402L
       [this, message, message_queue, send_callback = std::move(send_callback), timeout]
@@ -234,6 +237,7 @@ void DefaultMQProducerImpl::Send(const MessagePtr& message,
                                  MessageQueueSelector selector,
                                  SendCallback send_callback,
                                  int64_t timeout) noexcept {
+  Expects(send_callback != nullptr);
   async_send_executor_->submit(
 #if __cplusplus >= 201402L
       [this, message, selector = std::move(selector), send_callback = std::move(send_callback), timeout]
@@ -780,6 +784,7 @@ MessagePtr DefaultMQProducerImpl::Request(const MessagePtr& message, int64_t tim
 void DefaultMQProducerImpl::Request(const MessagePtr& message,
                                     RequestCallback request_callback,
                                     int64_t timeout) noexcept {
+  Expects(request_callback != nullptr);
   AsyncRequestImpl(message, timeout, std::move(request_callback),
                    [this](const MessagePtr& message, SendCallback send_callback, int64_t timeout) noexcept {
                      Send(message, std::move(send_callback), timeout);
@@ -800,6 +805,7 @@ void DefaultMQProducerImpl::Request(const MessagePtr& message,
                                     const MessageQueue& message_queue,
                                     RequestCallback request_callback,
                                     int64_t timeout) noexcept {
+  Expects(request_callback != nullptr);
   AsyncRequestImpl(
       message, timeout, std::move(request_callback),
       [this, &message_queue](const MessagePtr& message, SendCallback send_callback, int64_t timeout) noexcept {
@@ -819,6 +825,7 @@ void DefaultMQProducerImpl::Request(const MessagePtr& message,
                                     MessageQueueSelector selector,
                                     RequestCallback request_callback,
                                     int64_t timeout) noexcept {
+  Expects(request_callback != nullptr);
   AsyncRequestImpl(
       message, timeout, std::move(request_callback),
       [this, &selector](const MessagePtr& message, SendCallback send_callback, int64_t timeout) mutable noexcept {

@@ -73,6 +73,16 @@ find_package(Jsoncpp 0.10.6 REQUIRED)
 message(STATUS "** JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
 message(STATUS "** JSONCPP_LIBRARIES: ${JSONCPP_LIBRARIES}")
 
+if(NOT (CMAKE_VERSION VERSION_LESS "3.14"))
+  include(FetchContent)
+  FetchContent_Declare(
+    GSL
+    GIT_REPOSITORY "https://github.com/microsoft/GSL"
+    GIT_TAG "v3.1.0")
+  FetchContent_MakeAvailable(GSL)
+  set(GSL_FOUND True)
+endif()
+
 # Set compile options
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
