@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.14)
 
 # CMake complains if we don't have this.
 if(COMMAND cmake_policy)
@@ -52,7 +52,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
 # Find dependencies
 
-# find_package(spdlog REQUIRED)
+find_package(spdlog)
 if(NOT spdlog_FOUND)
   include_directories(${CMAKE_SOURCE_DIR}/bin/include)
 endif()
