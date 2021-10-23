@@ -36,7 +36,9 @@ MQClientInstancePtr MQClientManager::getOrCreateMQClientInstance(const MQClientC
 MQClientInstancePtr MQClientManager::getOrCreateMQClientInstance(const MQClientConfig& clientConfig,
                                                                  RPCHookPtr rpcHook) {
   std::string clientId = clientConfig.buildMQClientId();
+
   std::lock_guard<std::mutex> lock(mutex_);
+
   const auto& it = instance_table_.find(clientId);
   if (it != instance_table_.end()) {
     return it->second;

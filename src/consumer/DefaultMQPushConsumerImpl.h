@@ -85,8 +85,8 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
 
   void Subscribe(const std::string& topic, const std::string& expression);
 
-  bool SendMessageBack(MessageExtPtr message, int delay_level);
-  bool SendMessageBack(MessageExtPtr message, int delay_level, const std::string& broker_name);
+  bool SendMessageBack(const MessageExtPtr& message, int delay_level);
+  bool SendMessageBack(const MessageExtPtr& message, int delay_level, const std::string& broker_name);
 
  public:  // MQConsumerInner
   const std::string& groupName() const override;
@@ -110,8 +110,7 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
   std::unique_ptr<ConsumerRunningInfo> consumerRunningInfo() override;
 
  public:
-  void ExecutePullRequestLater(PullRequestPtr pull_request, long delay);
-  void ExecutePullRequestImmediately(PullRequestPtr pull_request);
+  void DispatchPullRequest(const std::vector<PullRequestPtr>& pull_request_list);
 
   void ResetRetryAndNamespace(const std::vector<MessageExtPtr>& messages);
 
@@ -122,15 +121,11 @@ class DefaultMQPushConsumerImpl final : public std::enable_shared_from_this<Defa
   void CopySubscription();
   void UpdateTopicSubscribeInfoWhenSubscriptionChanged();
 
-  void CorrectTagsOffset(PullRequestPtr pull_request);
-
-  void ExecuteTaskLater(Task task, long delay);
-
  public:
   bool pause() const { return pause_; };
   void set_pause(bool pause) { pause_ = pause; }
 
-  bool consume_orderly() { return consume_orderly_; }
+  bool consume_orderly() const { return consume_orderly_; }
 
   RebalancePushImpl* rebalance_impl() const { return rebalance_impl_.get(); }
 

@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <DefaultMQPushConsumer.h>
+
+#include "UtilAll.h"
 #include "common.h"
 #include "concurrent/latch.hpp"
-#include "DefaultMQPushConsumer.h"
-#include "UtilAll.h"
 
 using namespace rocketmq;
 
@@ -26,8 +27,6 @@ latch g_finished(1);
 
 class MyMsgListener : public MessageListenerConcurrently {
  public:
-  virtual ~MyMsgListener() = default;
-
   ConsumeStatus consumeMessage(std::vector<MQMessageExt>& msgs) override {
     auto old = g_msg_count.fetch_sub(msgs.size());
     if (old > 0) {
@@ -56,36 +55,34 @@ int main(int argc, char* argv[]) {
   }
   PrintRocketmqSendAndConsumerArgs(info);
 
-  auto* consumer = new DefaultMQPushConsumer(info.groupname);
-  consumer->set_namesrv_addr(info.namesrv);
-  consumer->set_group_name(info.groupname);
-  consumer->set_tcp_transport_try_lock_timeout(1000);
-  consumer->set_tcp_transport_connect_timeout(400);
-  consumer->set_consume_thread_nums(info.thread_count);
-  consumer->set_consume_from_where(CONSUME_FROM_LAST_OFFSET);
+  DefaultMQPushConsumer consumer(info.groupname);
+  consumer.set_namesrv_addr(info.namesrv);
+  consumer.set_group_name(info.groupname);
+  consumer.set_tcp_transport_try_lock_timeout(1000);
+  consumer.set_tcp_transport_connect_timeout(400);
+  consumer.set_consume_thread_nums(info.thread_count);
+  consumer.set_consume_from_where(CONSUME_FROM_LAST_OFFSET);
 
   if (info.broadcasting) {
-    consumer->set_message_model(BROADCASTING);
+    consumer.set_message_model(BROADCASTING);
   }
 
-  consumer->subscribe(info.topic, "*");
+  consumer.subscribe(info.topic, "*");
 
   MyMsgListener msglistener;
-  consumer->registerMessageListener(&msglistener);
+  consumer.registerMessageListener(&msglistener);
 
   g_tps.start();
 
   try {
-    consumer->start();
+    consumer.start();
   } catch (MQClientException& e) {
     std::cout << e << std::endl;
   }
 
   g_finished.wait();
 
-  consumer->shutdown();
-
-  delete consumer;
+  consumer.shutdown();
 
   return 0;
 }

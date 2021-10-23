@@ -25,11 +25,11 @@ namespace rocketmq {
 template <typename R>
 class ResultState {
  public:
-  using result_t = typename std::decay<R>::type;
+  using ResultType = typename std::decay<R>::type;
 
  public:
-  ResultState() : has_result_(false) {}
-  ResultState(result_t result) : has_result_(true), result_(std::move(result)) {}
+  ResultState() = default;
+  ResultState(ResultType result) : has_result_(true), result_(std::move(result)) {}
   ResultState(const std::exception_ptr& exception) : has_result_(true), exception_(exception) {}
 
   ~ResultState() = default;
@@ -39,11 +39,11 @@ class ResultState {
   ResultState& operator=(const ResultState&) = delete;
 
   // enable move
-  ResultState(ResultState&&) = default;
-  ResultState& operator=(ResultState&&) = default;
+  ResultState(ResultState&&) noexcept = default;
+  ResultState& operator=(ResultState&&) noexcept = default;
 
  public:
-  result_t& GetResult() {
+  ResultType& GetResult() {
     if (exception_ != nullptr) {
       std::rethrow_exception(exception_);
     } else {
@@ -52,15 +52,15 @@ class ResultState {
   }
 
  public:
-  template <typename T = result_t>
+  template <typename T = ResultType>
   void set_result(T&& result) {
     check_state();
     result_ = std::forward<T>(result);
   }
 
-  void set_exception(std::exception_ptr exception) {
+  void set_exception(const std::exception_ptr& exception) {
     check_state();
-    exception_ = std::move(exception);
+    exception_ = exception;
   }
 
  private:
@@ -71,8 +71,8 @@ class ResultState {
   }
 
  private:
-  bool has_result_;
-  result_t result_;
+  bool has_result_{false};
+  ResultType result_;
   std::exception_ptr exception_;
 };
 

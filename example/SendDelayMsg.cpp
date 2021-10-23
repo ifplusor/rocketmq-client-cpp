@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "common.h"
 #include "DefaultMQProducer.h"
+#include "common.h"
 
 using namespace rocketmq;
 
@@ -26,13 +26,13 @@ int main(int argc, char* argv[]) {
   }
   PrintRocketmqSendAndConsumerArgs(info);
 
-  auto* producer = new DefaultMQProducer(info.groupname);
-  producer->set_namesrv_addr(info.namesrv);
-  producer->set_group_name(info.groupname);
-  producer->set_send_msg_timeout(3000);
-  producer->set_tcp_transport_try_lock_timeout(1000);
-  producer->set_tcp_transport_connect_timeout(400);
-  producer->start();
+  DefaultMQProducer producer(info.groupname);
+  producer.set_namesrv_addr(info.namesrv);
+  producer.set_group_name(info.groupname);
+  producer.set_send_msg_timeout(3000);
+  producer.set_tcp_transport_try_lock_timeout(1000);
+  producer.set_tcp_transport_connect_timeout(400);
+  producer.start();
 
   MQMessage msg(info.topic,  // topic
                 "*",         // tag
@@ -41,14 +41,12 @@ int main(int argc, char* argv[]) {
   // messageDelayLevel=1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h
   msg.set_delay_time_level(5);  // 1m
   try {
-    SendResult sendResult = producer->send(msg);
+    SendResult sendResult = producer.send(msg);
   } catch (const MQException& e) {
     std::cout << "send failed: " << std::endl;
   }
 
-  producer->shutdown();
-
-  delete producer;
+  producer.shutdown();
 
   return 0;
 }

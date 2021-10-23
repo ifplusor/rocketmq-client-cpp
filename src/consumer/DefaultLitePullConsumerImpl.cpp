@@ -363,8 +363,9 @@ void DefaultLitePullConsumerImpl::Unsubscribe(const std::string& topic) {
 
 std::vector<SubscriptionData> DefaultLitePullConsumerImpl::subscriptions() const {
   std::vector<SubscriptionData> result;
-  auto& subTable = rebalance_impl_->getSubscriptionInner();
-  for (const auto& it : subTable) {
+  const auto& subscription_table = rebalance_impl_->getSubscriptionInner();
+  result.reserve(subscription_table.size());
+  for (const auto& it : subscription_table) {
     result.push_back(*(it.second));
   }
   return result;
@@ -444,7 +445,7 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
   // FIXME
   auto cached_message_count = process_queue->GetCachedMessagesCount();
   if (cached_message_count > config().pull_threshold_for_queue()) {
-    ExecutePullRequestLater(pull_request, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
+    ExecutePullRequestLater(std::move(pull_request), PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
     if ((queue_flow_control_times_++ % 1000) == 0) {
       LOG_WARN_NEW(
           "The cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, "
@@ -499,11 +500,11 @@ void DefaultLitePullConsumerImpl::pullMessage(PullRequestPtr pull_request) {
 
   bool is_tag_type = ExpressionType::isTagType(subscription_data->type);
 
-  int system_flag = PullSysFlag::buildSysFlag(false,  // commit offset
-                                              true,   // suspend
-                                              true,   // suspend
-                                              false,  // class filter
-                                              true);
+  int system_flag = PullSysFlag::buildSysFlag(/* commit_offset */ false,
+                                              /* suspend */ true,
+                                              /* subscription */ true,
+                                              /* class_filter */ false,
+                                              /* lite_pull */ true);
 
   std::weak_ptr<DefaultLitePullConsumerImpl> consumer_ptr{shared_from_this()};
   auto pull_callback = [consumer_ptr, pull_request,

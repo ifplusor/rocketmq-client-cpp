@@ -17,27 +17,27 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "MQMessageQueue.h"
+#include "MessageQueue.hpp"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
 using testing::Return;
 
-using rocketmq::MQMessageQueue;
+using rocketmq::MessageQueue;
 
 TEST(MessageQueueTest, Init) {
-  MQMessageQueue messageQueue;
+  MessageQueue messageQueue;
   EXPECT_EQ(messageQueue.broker_name(), "");
   EXPECT_EQ(messageQueue.topic(), "");
   EXPECT_EQ(messageQueue.queue_id(), -1);
 
-  MQMessageQueue twoMessageQueue("testTopic", "testBroker", 1);
+  MessageQueue twoMessageQueue("testTopic", "testBroker", 1);
   EXPECT_EQ(twoMessageQueue.broker_name(), "testBroker");
   EXPECT_EQ(twoMessageQueue.topic(), "testTopic");
   EXPECT_EQ(twoMessageQueue.queue_id(), 1);
 
-  MQMessageQueue threeMessageQueue("threeTestTopic", "threeTestBroker", 2);
-  MQMessageQueue fourMessageQueue(threeMessageQueue);
+  MessageQueue threeMessageQueue("threeTestTopic", "threeTestBroker", 2);
+  MessageQueue fourMessageQueue(threeMessageQueue);
   EXPECT_EQ(fourMessageQueue.broker_name(), "threeTestBroker");
   EXPECT_EQ(fourMessageQueue.topic(), "threeTestTopic");
   EXPECT_EQ(fourMessageQueue.queue_id(), 2);
@@ -56,31 +56,31 @@ TEST(MessageQueueTest, Init) {
 }
 
 TEST(MessageQueueTest, Operators) {
-  MQMessageQueue messageQueue;
+  MessageQueue messageQueue;
   EXPECT_EQ(messageQueue, messageQueue);
-  EXPECT_EQ(messageQueue.compareTo(messageQueue), 0);
+  EXPECT_EQ(messageQueue.Compare(messageQueue), 0);
 
-  MQMessageQueue twoMessageQueue;
+  MessageQueue twoMessageQueue;
   EXPECT_EQ(messageQueue, twoMessageQueue);
-  EXPECT_EQ(messageQueue.compareTo(twoMessageQueue), 0);
+  EXPECT_EQ(messageQueue.Compare(twoMessageQueue), 0);
 
   twoMessageQueue.set_topic("testTopic");
   EXPECT_FALSE(messageQueue == twoMessageQueue);
-  EXPECT_NE(messageQueue.compareTo(twoMessageQueue), 0);
+  EXPECT_NE(messageQueue.Compare(twoMessageQueue), 0);
 
   twoMessageQueue = messageQueue;
   EXPECT_TRUE(messageQueue == twoMessageQueue);
 
   twoMessageQueue.set_queue_id(1);
   EXPECT_FALSE(messageQueue == twoMessageQueue);
-  EXPECT_NE(messageQueue.compareTo(twoMessageQueue), 0);
+  EXPECT_NE(messageQueue.Compare(twoMessageQueue), 0);
 
   twoMessageQueue = messageQueue;
   EXPECT_TRUE(messageQueue == twoMessageQueue);
 
   twoMessageQueue.set_broker_name("testBroker");
   EXPECT_FALSE(messageQueue == twoMessageQueue);
-  EXPECT_FALSE(messageQueue.compareTo(twoMessageQueue) == 0);
+  EXPECT_FALSE(messageQueue.Compare(twoMessageQueue) == 0);
 }
 
 int main(int argc, char* argv[]) {

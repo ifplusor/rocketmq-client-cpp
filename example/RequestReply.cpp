@@ -16,18 +16,18 @@
  */
 #include <iostream>
 
-#include "../src/common/UtilAll.h"
+#include <DefaultMQProducer.h>
+#include <DefaultMQPushConsumer.h>
+#include <MessageUtil.h>
+
 #include "common.h"
-#include "MessageUtil.h"
-#include "DefaultMQProducer.h"
-#include "DefaultMQPushConsumer.h"
+#include "common/UtilAll.h"
 
 using namespace rocketmq;
 
 class MyResponseMessageListener : public MessageListenerConcurrently {
  public:
-  MyResponseMessageListener(DefaultMQProducer* replyProducer) : m_replyProducer(replyProducer) {}
-  virtual ~MyResponseMessageListener() = default;
+  MyResponseMessageListener(DefaultMQProducer* reply_producer) : reply_roducer_(reply_producer) {}
 
   ConsumeStatus consumeMessage(std::vector<MQMessageExt>& msgs) override {
     for (const auto& msg : msgs) {
@@ -39,8 +39,8 @@ class MyResponseMessageListener : public MessageListenerConcurrently {
         MQMessage replyMessage = MessageUtil::createReplyMessage(msg, "reply message contents.");
 
         // send reply message with producer
-        SendResult replyResult = m_replyProducer->send(replyMessage, 10000);
-        std::cout << "reply to " << replyTo << ", " << replyResult.toString() << std::endl;
+        SendResult replyResult = reply_roducer_->send(replyMessage, 10000);
+        std::cout << "reply to " << replyTo << ", " << replyResult.ToString() << std::endl;
       } catch (const std::exception& e) {
         std::cout << e.what() << std::endl;
       }
@@ -49,7 +49,7 @@ class MyResponseMessageListener : public MessageListenerConcurrently {
   }
 
  private:
-  DefaultMQProducer* m_replyProducer;
+  DefaultMQProducer* reply_roducer_;
 };
 
 int main(int argc, char* argv[]) {

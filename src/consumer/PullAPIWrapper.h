@@ -48,9 +48,9 @@ class PullAPIWrapper {
                                                 CommunicationMode communication_mode,
                                                 PullCallback pull_callback);
 
-  std::unique_ptr<PullResult> ProcessPullResult(const MessageQueue& mq,
-                                                std::unique_ptr<PullResultExt> pull_result_ext,
-                                                SubscriptionData* subscriptionData);
+  std::unique_ptr<PullResult> ProcessPullResult(const MessageQueue& message_queue,
+                                                const std::unique_ptr<PullResultExt>& pull_result_ext,
+                                                const SubscriptionData* subscription_data);
 
  private:
   int RecalculatePullFromWhichNode(const MessageQueue& message_queue);

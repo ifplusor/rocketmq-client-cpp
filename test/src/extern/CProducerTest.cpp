@@ -21,7 +21,7 @@
 #include "MQMessage.h"
 #include "MQMessageQueue.h"
 #include "MQSelector.h"
-#include "SendResult.h"
+#include "SendResult.hpp"
 #include "SessionCredentials.h"
 #include "c/CMessage.h"
 #include "c/CProducer.h"

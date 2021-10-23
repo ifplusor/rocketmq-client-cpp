@@ -34,26 +34,21 @@ struct ProcessQueueInfo;
 class ProcessQueue;
 using ProcessQueuePtr = std::shared_ptr<ProcessQueue>;
 
-class ROCKETMQCLIENT_API ProcessQueue {
+class ProcessQueue {
  public:
-  static const uint64_t kRebalanceLockInterval = 20000;  // ms
-
- public:
-  ProcessQueue(const MessageQueue& message_queue);
-  virtual ~ProcessQueue();
+  ProcessQueue(MessageQueue message_queue);
 
   bool PutMessages(const std::vector<MessageExtPtr>& messages);
 
   std::vector<MessageExtPtr> TakeMessages(int batch_size) {
     int64_t next_offset;
-    bool remained;
-    return TakeMessages(batch_size, true, std::numeric_limits<int64_t>::max(), next_offset, remained);
+    return TakeMessages(batch_size, true, std::numeric_limits<int64_t>::max(), next_offset, nullptr);
   }
   std::vector<MessageExtPtr> TakeMessages(int batch_size,
                                           bool need_commit,
                                           int64_t offset_limit,
                                           int64_t& next_offset,
-                                          bool& remained);
+                                          bool* remained);
 
   void MakeMessagesToCosumeAgain(std::vector<MessageExtPtr>& messages);
 

@@ -66,6 +66,7 @@ std::unique_ptr<PullResultExt> PullAPIWrapper::PullKernelImpl(const MessageQueue
     request_header->suspend_timeout_millis = broker_suspend_max_time_millis;
     request_header->subscription = expression;
     request_header->subscription_version = version;
+    request_header->expression_type = expression_type;
 
     return client_instance_->GetMQClientAPIImpl()->PullMessage(find_broker_result.broker_addr,
                                                                std::move(request_header), timeout_millis,
@@ -85,8 +86,8 @@ int PullAPIWrapper::RecalculatePullFromWhichNode(const MessageQueue& message_que
 }
 
 std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MessageQueue& message_queue,
-                                                              std::unique_ptr<PullResultExt> pull_result_ext,
-                                                              SubscriptionData* subscription_data) {
+                                                              const std::unique_ptr<PullResultExt>& pull_result_ext,
+                                                              const SubscriptionData* subscription_data) {
   // update node
   UpdatePullFromWhichNode(message_queue, static_cast<int>(pull_result_ext->suggert_which_boker_id));
 
@@ -123,9 +124,9 @@ std::unique_ptr<PullResult> PullAPIWrapper::ProcessPullResult(const MessageQueue
     }
   }
 
-  return std::unique_ptr<PullResult>(new PullResult(pull_result_ext->pull_status, pull_result_ext->next_begin_offset,
-                                                    pull_result_ext->min_offset, pull_result_ext->max_offset,
-                                                    std::move(filtered_message_list)));
+  return MakeUnique<PullResult>(pull_result_ext->pull_status, pull_result_ext->next_begin_offset,
+                                pull_result_ext->min_offset, pull_result_ext->max_offset,
+                                std::move(filtered_message_list));
 }
 
 void PullAPIWrapper::UpdatePullFromWhichNode(const MessageQueue& message_queue, int broker_id) {

@@ -34,9 +34,9 @@
 #include "SessionCredentials.h"
 #include "TcpTransport.h"
 #include "UtilAll.h"
-#include "protocol/body/ConsumerRunningInfo.h"
+#include "protocol/body/ConsumerRunningInfo.hpp"
 #include "protocol/body/ResetOffsetBody.hpp"
-#include "protocol/header/CommandHeader.h"
+// #include "protocol/header/CommandHeader.h"
 
 using testing::_;
 using testing::InitGoogleMock;
@@ -52,20 +52,20 @@ using rocketmq::ByteArray;
 using rocketmq::ClientRemotingProcessor;
 using rocketmq::ClientRPCHook;
 using rocketmq::ConsumerRunningInfo;
-using rocketmq::GetConsumerRunningInfoRequestHeader;
+// using rocketmq::GetConsumerRunningInfoRequestHeader;
 using rocketmq::MQClientConfig;
 using rocketmq::MQClientConfigImpl;
 using rocketmq::MQClientInstance;
 using rocketmq::MQMessageQueue;
 using rocketmq::MQRequestCode;
 using rocketmq::MQResponseCode;
-using rocketmq::NotifyConsumerIdsChangedRequestHeader;
+// using rocketmq::NotifyConsumerIdsChangedRequestHeader;
 using rocketmq::RemotingCommand;
 using rocketmq::ResetOffsetBody;
-using rocketmq::ResetOffsetRequestHeader;
+// using rocketmq::ResetOffsetRequestHeader;
 using rocketmq::SessionCredentials;
 using rocketmq::TcpTransport;
-using rocketmq::UtilAll;
+namespace UtilAll = rocketmq::UtilAll;
 
 class MockClientRemotingProcessor : public ClientRemotingProcessor {
  public:

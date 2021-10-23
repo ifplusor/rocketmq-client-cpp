@@ -19,7 +19,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "InvokeCallback.h"
+// #include "InvokeCallback.h"
 #include "RemotingCommand.h"
 #include "UtilAll.h"
 #include "protocol/RequestCode.h"
@@ -29,29 +29,18 @@ using testing::InitGoogleMock;
 using testing::InitGoogleTest;
 using testing::Return;
 
-using rocketmq::InvokeCallback;
 using rocketmq::MQRequestCode;
 using rocketmq::RemotingCommand;
 using rocketmq::ResponseFuture;
-using rocketmq::UtilAll;
-
-class MockInvokeCallback : public InvokeCallback {
- public:
-  void operationComplete(ResponseFuture* responseFuture) noexcept {}
-};
+namespace UtilAll = rocketmq::UtilAll;
 
 TEST(ResponseFutureTest, Init) {
   ResponseFuture responseFuture(MQRequestCode::QUERY_BROKER_OFFSET, 4, 1000);
   EXPECT_EQ(responseFuture.request_code(), MQRequestCode::QUERY_BROKER_OFFSET);
   EXPECT_EQ(responseFuture.opaque(), 4);
-  EXPECT_EQ(responseFuture.timeout_millis(), 1000);
   EXPECT_FALSE(responseFuture.send_request_ok());
-  EXPECT_FALSE(responseFuture.hasInvokeCallback());
 
   // ~ResponseFuture delete callback
-  ResponseFuture twoResponseFuture(MQRequestCode::QUERY_BROKER_OFFSET, 4, 1000,
-                                   std::unique_ptr<InvokeCallback>(new MockInvokeCallback()));
-  EXPECT_TRUE(twoResponseFuture.hasInvokeCallback());
 }
 
 TEST(ResponseFutureTest, Info) {
@@ -62,16 +51,16 @@ TEST(ResponseFutureTest, Info) {
 }
 
 TEST(ResponseFutureTest, Response) {
-  ResponseFuture responseFuture(MQRequestCode::QUERY_BROKER_OFFSET, 4, 1000);
-  EXPECT_FALSE(responseFuture.hasInvokeCallback());
+  // ResponseFuture responseFuture(MQRequestCode::QUERY_BROKER_OFFSET, 4, 1000);
+  // EXPECT_FALSE(responseFuture.HasRequestCallback());
 
-  std::unique_ptr<RemotingCommand> responseCommand(new RemotingCommand());
-  responseFuture.setResponseCommand(std::move(responseCommand));
-  EXPECT_EQ(responseFuture.getResponseCommand()->code(), 0);
+  // std::unique_ptr<RemotingCommand> responseCommand(new RemotingCommand());
+  // responseFuture.SetResponseCommand(std::move(responseCommand));
+  // EXPECT_EQ(responseFuture.GetResponseCommand()->code(), 0);
 
   ResponseFuture responseFuture2(MQRequestCode::QUERY_BROKER_OFFSET, 4, 1000);
   uint64_t millis = UtilAll::currentTimeMillis();
-  auto remotingCommand = responseFuture2.waitResponse(1000);
+  auto remotingCommand = responseFuture2.WaitResponseCommand(1000);
   uint64_t useTime = UtilAll::currentTimeMillis() - millis;
   EXPECT_LT(useTime, 3000);
   EXPECT_EQ(remotingCommand, nullptr);

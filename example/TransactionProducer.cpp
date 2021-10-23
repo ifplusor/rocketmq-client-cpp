@@ -14,24 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <TransactionMQProducer.h>
+
 #include "common.h"
-#include "TransactionMQProducer.h"
 
 using namespace rocketmq;
 
 TpsReportService g_tps;
 
 class MyTransactionListener : public TransactionListener {
-  virtual LocalTransactionState executeLocalTransaction(const MQMessage& msg, void* arg) {
-    LocalTransactionState state = (LocalTransactionState)(((intptr_t)arg) % 3);
-    std::cout << "executeLocalTransaction transactionId:" << msg.transaction_id() << ", return state: " << state
-              << std::endl;
+  LocalTransactionState executeLocalTransaction(const MQMessage& msg, void* arg) override {
+    auto state = static_cast<LocalTransactionState>(reinterpret_cast<intptr_t>(arg) % 3);
+    std::cout << "executeLocalTransaction transactionId:" << msg.transaction_id()
+              << ", return state: " << rocketmq::ToString(state) << std::endl;
     return state;
   }
 
-  virtual LocalTransactionState checkLocalTransaction(const MQMessageExt& msg) {
+  LocalTransactionState checkLocalTransaction(const MQMessageExt& msg) override {
     std::cout << "checkLocalTransaction enter msg:" << msg.toString() << std::endl;
-    return LocalTransactionState::COMMIT_MESSAGE;
+    return LocalTransactionState::kCommitMessage;
   }
 };
 
@@ -51,7 +52,8 @@ void SyncProducerWorker(RocketmqSendAndConsumerArgs* info, TransactionMQProducer
 
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       if (duration.count() >= 500) {
-        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.msg_id() << std::endl;
+        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.message_id()
+                  << std::endl;
       }
     } catch (const MQException& e) {
       std::cout << "send failed: " << e.what() << std::endl;
@@ -67,20 +69,20 @@ int main(int argc, char* argv[]) {
   }
   PrintRocketmqSendAndConsumerArgs(info);
 
-  auto* producer = new TransactionMQProducer(info.groupname);
-  producer->set_namesrv_addr(info.namesrv);
-  producer->set_group_name(info.groupname);
-  producer->set_send_msg_timeout(3000);
-  producer->set_retry_times(info.retrytimes);
-  producer->set_retry_times_for_async(info.retrytimes);
-  producer->set_send_latency_fault_enable(!info.selectUnactiveBroker);
-  producer->set_tcp_transport_try_lock_timeout(1000);
-  producer->set_tcp_transport_connect_timeout(400);
+  TransactionMQProducer producer(info.groupname);
+  producer.set_namesrv_addr(info.namesrv);
+  producer.set_group_name(info.groupname);
+  producer.set_send_msg_timeout(3000);
+  producer.set_retry_times(info.retrytimes);
+  producer.set_retry_times_for_async(info.retrytimes);
+  producer.set_send_latency_fault_enable(!info.selectUnactiveBroker);
+  producer.set_tcp_transport_try_lock_timeout(1000);
+  producer.set_tcp_transport_connect_timeout(400);
 
   MyTransactionListener myListener;
-  producer->set_transaction_listener(&myListener);
+  producer.set_transaction_listener(&myListener);
 
-  producer->start();
+  producer.start();
 
   std::vector<std::shared_ptr<std::thread>> work_pool;
   int msgcount = g_msg_count.load();
@@ -90,7 +92,7 @@ int main(int argc, char* argv[]) {
 
   int threadCount = info.thread_count;
   for (int j = 0; j < threadCount; j++) {
-    auto th = std::make_shared<std::thread>(SyncProducerWorker, &info, producer);
+    auto th = std::make_shared<std::thread>(SyncProducerWorker, &info, &producer);
     work_pool.push_back(th);
   }
 
@@ -105,9 +107,7 @@ int main(int argc, char* argv[]) {
             << "========================finished=============================" << std::endl;
 
   std::this_thread::sleep_for(std::chrono::seconds(30));
-  producer->shutdown();
-
-  delete producer;
+  producer.shutdown();
 
   return 0;
 }

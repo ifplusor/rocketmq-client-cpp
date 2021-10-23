@@ -14,34 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#ifndef ROCKETMQ_PROXY_CONSUMING_CONSUMERPROXYSET_HPP_
+#define ROCKETMQ_PROXY_CONSUMING_CONSUMERPROXYSET_HPP_
 
-#include <map>
-#include <string>
+#include "proxy/consuming/BasicQueueSet.hpp"
+#include "proxy/consuming/LogicalQueue.hpp"
 
-#include "KVTable.h"
+namespace rocketmq {
 
-using testing::InitGoogleMock;
-using testing::InitGoogleTest;
-using testing::Return;
+class LogicalQueueSet : public BasicQueueSet<LogicalQueueSet, LogicalQueue> {};
 
-using rocketmq::KVTable;
-
-TEST(KVTableTest, Init) {
-  KVTable table;
-
-  EXPECT_EQ(table.getTable().size(), 0);
-
-  std::map<std::string, std::string> kvs;
-  kvs["string"] = "string";
-  table.setTable(kvs);
-  EXPECT_EQ(table.getTable().size(), 1);
-}
-
-int main(int argc, char* argv[]) {
-  InitGoogleMock(&argc, argv);
-  testing::GTEST_FLAG(throw_on_failure) = true;
-  testing::GTEST_FLAG(filter) = "KVTableTest.*";
-  return RUN_ALL_TESTS();
-}
+}  // namespace rocketmq
+#endif  // ROCKETMQ_PROXY_CONSUMING_CONSUMERPROXYSET_HPP_

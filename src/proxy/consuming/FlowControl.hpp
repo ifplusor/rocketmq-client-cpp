@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMERPROXY_FLOWCONTROL_HPP_
-#define ROCKETMQ_CONSUMERPROXY_FLOWCONTROL_HPP_
+#ifndef ROCKETMQ_PROXY_CONSUMING_FLOWCONTROL_HPP_
+#define ROCKETMQ_PROXY_CONSUMING_FLOWCONTROL_HPP_
 
 #include "utility/Size.hpp"
 
@@ -103,4 +103,4 @@ inline void FlowControlNode::Update(const FlowTracker& tracker) {
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_CONSUMERPROXY_FLOWCONTROL_HPP_
+#endif  // ROCKETMQ_PROXY_CONSUMING_FLOWCONTROL_HPP_

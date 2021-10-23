@@ -30,30 +30,30 @@ using rocketmq::ProcessQueueInfo;
 
 TEST(ProcessQueueInfoTest, Init) {
   ProcessQueueInfo processQueueInfo;
-  EXPECT_EQ(processQueueInfo.commitOffset, 0);
-  EXPECT_EQ(processQueueInfo.cachedMsgMinOffset, 0);
-  EXPECT_EQ(processQueueInfo.cachedMsgMaxOffset, 0);
-  EXPECT_EQ(processQueueInfo.cachedMsgCount, 0);
-  EXPECT_EQ(processQueueInfo.transactionMsgMinOffset, 0);
-  EXPECT_EQ(processQueueInfo.transactionMsgMaxOffset, 0);
-  EXPECT_EQ(processQueueInfo.transactionMsgCount, 0);
+  EXPECT_EQ(processQueueInfo.commit_offset, 0);
+  EXPECT_EQ(processQueueInfo.cached_message_min_offset, 0);
+  EXPECT_EQ(processQueueInfo.cached_message_max_offset, 0);
+  EXPECT_EQ(processQueueInfo.cached_message_count, 0);
+  EXPECT_EQ(processQueueInfo.transaction_message_min_offset, 0);
+  EXPECT_EQ(processQueueInfo.transaction_message_max_offset, 0);
+  EXPECT_EQ(processQueueInfo.transaction_message_count, 0);
   EXPECT_EQ(processQueueInfo.locked, false);
-  EXPECT_EQ(processQueueInfo.tryUnlockTimes, 0);
-  EXPECT_EQ(processQueueInfo.lastLockTimestamp, 0);
+  EXPECT_EQ(processQueueInfo.try_unlock_times, 0);
+  EXPECT_EQ(processQueueInfo.last_lock_timestamp, 0);
   EXPECT_EQ(processQueueInfo.droped, false);
-  EXPECT_EQ(processQueueInfo.lastPullTimestamp, 0);
-  EXPECT_EQ(processQueueInfo.lastConsumeTimestamp, 0);
+  EXPECT_EQ(processQueueInfo.last_pull_timestamp, 0);
+  EXPECT_EQ(processQueueInfo.last_consume_timestamp, 0);
 
-  processQueueInfo.setLocked(true);
-  EXPECT_EQ(processQueueInfo.isLocked(), true);
+  processQueueInfo.locked = true;
+  EXPECT_EQ(processQueueInfo.locked, true);
 
-  processQueueInfo.setDroped(true);
-  EXPECT_EQ(processQueueInfo.isDroped(), true);
+  processQueueInfo.droped = true;
+  EXPECT_EQ(processQueueInfo.droped, true);
 
-  processQueueInfo.setCommitOffset(456);
-  EXPECT_EQ(processQueueInfo.getCommitOffset(), 456);
+  processQueueInfo.commit_offset = 456;
+  EXPECT_EQ(processQueueInfo.commit_offset, 456);
 
-  Json::Value outJson = processQueueInfo.toJson();
+  Json::Value outJson = processQueueInfo.ToJson();
 
   EXPECT_EQ(outJson["commitOffset"], "456");
   EXPECT_EQ(outJson["cachedMsgMinOffset"], "0");

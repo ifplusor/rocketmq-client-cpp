@@ -32,17 +32,17 @@
 
 namespace rocketmq {
 
-typedef std::map<std::string, std::vector<MessageQueue>> TOPIC2MQS;
-typedef std::map<std::string, std::unique_ptr<SubscriptionData>> TOPIC2SD;
-typedef std::map<std::string, std::vector<MessageQueue>> BROKER2MQS;
+using TOPIC2MQS = std::map<std::string, std::vector<MessageQueue>>;
+using TOPIC2SD = std::map<std::string, std::unique_ptr<SubscriptionData>>;
+using BROKER2MQS = std::map<std::string, std::vector<MessageQueue>>;
 
 class RebalanceImpl {
  public:
-  RebalanceImpl(const std::string& consumerGroup,
+  RebalanceImpl(std::string consumerGroup,
                 MessageModel messageModel,
-                const AllocateMQStrategy& allocateMqStrategy,
+                AllocateMQStrategy allocateMqStrategy,
                 MQClientInstance* clientInstance);
-  virtual ~RebalanceImpl();
+  virtual ~RebalanceImpl() = default;
 
  public:
   virtual void shutdown(){};
@@ -73,7 +73,7 @@ class RebalanceImpl {
  public:
   TOPIC2SD& getSubscriptionInner();
   SubscriptionData* getSubscriptionData(const std::string& topic);
-  void setSubscriptionData(const std::string& topic, std::unique_ptr<SubscriptionData> sd) noexcept;
+  void setSubscriptionData(const std::string& topic, std::unique_ptr<SubscriptionData> subscription_data) noexcept;
 
   bool getTopicSubscribeInfo(const std::string& topic, std::vector<MessageQueue>& mqs);
   void setTopicSubscribeInfo(const std::string& topic, const std::vector<MessageQueue>& mqs);
@@ -89,6 +89,9 @@ class RebalanceImpl {
   void set_client_instance(MQClientInstance* instance) { client_instance_ = instance; }
 
  protected:
+  MQClientInstance* client_instance() const { return client_instance_; }
+
+ private:
   TOPIC2MQS topic_subscribe_info_table_;
   std::mutex topic_subscribe_info_table_mutex_;
 

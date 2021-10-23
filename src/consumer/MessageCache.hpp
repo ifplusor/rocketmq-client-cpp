@@ -33,24 +33,25 @@ class MessageCache {
   virtual void ClearMessages(const ProcessQueuePtr& process_queue) { process_queue->ClearAllMessages(); }
 
   std::vector<MessageExtPtr> TakeMessages(const ProcessQueuePtr& process_queue, int batch_size, int64_t offset_limit) {
-    bool remained;
-    return TakeMessagesImpl(process_queue, batch_size, offset_limit, remained);
+    return TakeMessagesImpl(process_queue, batch_size, offset_limit, nullptr);
   }
 
  protected:
   std::vector<MessageExtPtr> TakeMessagesImpl(const ProcessQueuePtr& process_queue,
                                               int batch_size,
                                               int64_t offset_limit,
-                                              bool& remained) {
+                                              bool* remained) {
     if (process_queue->dropped()) {
-      int64_t next_offset;
-      auto messages = process_queue->TakeMessages(batch_size, false, offset_limit, next_offset, remained);
-      process_queue->set_consume_offset(next_offset);
-      return messages;
-    } else {
-      remained = false;
+      if (remained != nullptr) {
+        *remained = false;
+      }
+      return {};
     }
-    return std::vector<MessageExtPtr>();
+
+    int64_t next_offset = 0;
+    auto messages = process_queue->TakeMessages(batch_size, false, offset_limit, next_offset, remained);
+    process_queue->set_consume_offset(next_offset);
+    return messages;
   }
 };
 

@@ -24,6 +24,7 @@
 namespace rocketmq {
 
 const uint64_t MAX_TIME_CONSUME_CONTINUOUSLY = 60000;
+const uint64_t kRebalanceLockInterval = 20000;  // ms
 
 ConsumeMessageOrderlyService::ConsumeMessageOrderlyService(DefaultMQPushConsumerImpl* consumer,
                                                            int threadCount,
@@ -39,7 +40,7 @@ void ConsumeMessageOrderlyService::start() {
   consume_executor_.startup();
 
   scheduled_executor_service_.startup();
-  scheduled_executor_service_.schedule([this]() { lockMQPeriodically(); }, ProcessQueue::kRebalanceLockInterval,
+  scheduled_executor_service_.schedule([this]() { lockMQPeriodically(); }, kRebalanceLockInterval,
                                        time_unit::milliseconds);
 }
 
@@ -54,18 +55,18 @@ void ConsumeMessageOrderlyService::stopThreadPool() {
 }
 
 void ConsumeMessageOrderlyService::lockMQPeriodically() {
-  consumer_->rebalance_impl()->lockAll();
+  consumer_->rebalance_impl()->LockAll();
 
-  scheduled_executor_service_.schedule([this] { lockMQPeriodically(); }, ProcessQueue::kRebalanceLockInterval,
+  scheduled_executor_service_.schedule([this] { lockMQPeriodically(); }, kRebalanceLockInterval,
                                        time_unit::milliseconds);
 }
 
 void ConsumeMessageOrderlyService::unlockAllMQ() {
-  consumer_->rebalance_impl()->unlockAll(false);
+  consumer_->rebalance_impl()->UnlockAll(false);
 }
 
 bool ConsumeMessageOrderlyService::lockOneMQ(const MessageQueue& mq) {
-  return consumer_->rebalance_impl()->lock(mq);
+  return consumer_->rebalance_impl()->Lock(mq);
 }
 
 void ConsumeMessageOrderlyService::submitConsumeRequest(std::vector<MessageExtPtr>& msgs,

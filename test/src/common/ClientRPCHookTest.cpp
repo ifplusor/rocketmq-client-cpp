@@ -21,13 +21,15 @@
 #include "RemotingCommand.h"
 #include "SessionCredentials.h"
 #include "protocol/RequestCode.h"
-#include "protocol/header/CommandHeader.h"
+#include "protocol/header/SendMessageRequestHeader.hpp"
+#include "utility/MakeUnique.hpp"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
 using testing::Return;
 
 using rocketmq::ClientRPCHook;
+using rocketmq::MakeUnique;
 using rocketmq::MQRequestCode;
 using rocketmq::RemotingCommand;
 using rocketmq::SendMessageRequestHeader;
@@ -46,8 +48,8 @@ TEST(ClientRPCHookTest, BeforeRequest) {
   RemotingCommand requestCommand;
   clientRPCHook.doBeforeRequest("127.0.0.1:9876", requestCommand, true);
 
-  SendMessageRequestHeader* sendMessageRequestHeader = new SendMessageRequestHeader();
-  RemotingCommand sendRequestCommand(MQRequestCode::UPDATE_AND_CREATE_TOPIC, sendMessageRequestHeader);
+  auto sendMessageRequestHeader = MakeUnique<SendMessageRequestHeader>();
+  RemotingCommand sendRequestCommand(MQRequestCode::UPDATE_AND_CREATE_TOPIC, std::move(sendMessageRequestHeader));
   clientRPCHook.doBeforeRequest("127.0.0.1:9876", sendRequestCommand, true);
 
   sendRequestCommand.set_body("1231231");

@@ -20,38 +20,36 @@
 #include <vector>
 
 #include "ByteArray.h"
-#include "MQMessageQueue.h"
-#include "protocol/body/LockBatchRequestBody.hpp"
-#include "protocol/body/LockBatchResponseBody.hpp"
-#include "protocol/body/UnlockBatchRequestBody.hpp"
+#include "MessageQueue.hpp"
+#include "protocol/body/ConsumeQueueSet.hpp"
+#include "protocol/body/LockBatchResult.hpp"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
 using testing::Return;
 
 using rocketmq::ByteArray;
-using rocketmq::LockBatchRequestBody;
-using rocketmq::LockBatchResponseBody;
-using rocketmq::MQMessageQueue;
-using rocketmq::UnlockBatchRequestBody;
+using rocketmq::ConsumeQueueSet;
+using rocketmq::LockBatchResult;
+using rocketmq::MessageQueue;
 
-TEST(LockBatchBodyTest, LockBatchRequestBody) {
-  LockBatchRequestBody lockBatchRequestBody;
+TEST(LockBatchTest, ConsumeQueueSet) {
+  ConsumeQueueSet consume_queue_set;
 
-  lockBatchRequestBody.set_client_id("testClientId");
-  EXPECT_EQ(lockBatchRequestBody.client_id(), "testClientId");
+  consume_queue_set.client_id = "testClientId";
+  EXPECT_EQ(consume_queue_set.client_id, "testClientId");
 
-  lockBatchRequestBody.set_consumer_group("testGroup");
-  EXPECT_EQ(lockBatchRequestBody.consumer_group(), "testGroup");
+  consume_queue_set.consumer_group = "testGroup";
+  EXPECT_EQ(consume_queue_set.consumer_group, "testGroup");
 
-  std::vector<MQMessageQueue> messageQueueList;
-  messageQueueList.push_back(MQMessageQueue("testTopic", "testBroker", 1));
-  messageQueueList.push_back(MQMessageQueue("testTopic", "testBroker", 2));
+  std::vector<MessageQueue> messageQueueList;
+  messageQueueList.emplace_back("testTopic", "testBroker", 1);
+  messageQueueList.emplace_back("testTopic", "testBroker", 2);
 
-  lockBatchRequestBody.set_mq_set(messageQueueList);
-  EXPECT_EQ(lockBatchRequestBody.mq_set(), messageQueueList);
+  consume_queue_set.message_queue_set = messageQueueList;
+  EXPECT_EQ(consume_queue_set.message_queue_set, messageQueueList);
 
-  std::string outData = lockBatchRequestBody.encode();
+  std::string outData = consume_queue_set.Encode();
 
   Json::Value root;
   Json::Reader reader;
@@ -63,9 +61,7 @@ TEST(LockBatchBodyTest, LockBatchRequestBody) {
   EXPECT_EQ(root["mqSet"][1]["queueId"], 2);
 }
 
-TEST(LockBatchBodyTest, UnlockBatchRequestBody) {}
-
-TEST(LockBatchBodyTest, LockBatchResponseBody) {
+TEST(LockBatchBodyTest, LockBatchResult) {
   Json::Value root;
   Json::Value mqs;
 
@@ -80,10 +76,10 @@ TEST(LockBatchBodyTest, LockBatchResponseBody) {
   std::string data = fastwrite.write(root);
 
   const ByteArray bodyData((char*)data.data(), data.size());
-  std::unique_ptr<LockBatchResponseBody> lockBatchResponseBody(LockBatchResponseBody::Decode(bodyData));
+  std::unique_ptr<LockBatchResult> lock_batch_result(LockBatchResult::Decode(bodyData));
 
-  MQMessageQueue messageQueue("testTopic", "testBroker", 1);
-  EXPECT_EQ(messageQueue, lockBatchResponseBody->lock_ok_mq_set()[0]);
+  MessageQueue messageQueue("testTopic", "testBroker", 1);
+  EXPECT_EQ(messageQueue, lock_batch_result->lock_ok_message_queue_set[0]);
 }
 
 int main(int argc, char* argv[]) {

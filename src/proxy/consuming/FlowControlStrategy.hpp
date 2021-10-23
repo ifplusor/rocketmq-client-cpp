@@ -14,22 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMERPROXY_FLOWCONTROLSTRATEGY_HPP_
-#define ROCKETMQ_CONSUMERPROXY_FLOWCONTROLSTRATEGY_HPP_
+#ifndef ROCKETMQ_PROXY_CONSUMING_FLOWCONTROLSTRATEGY_HPP_
+#define ROCKETMQ_PROXY_CONSUMING_FLOWCONTROLSTRATEGY_HPP_
 
 #include <iterator>  // std::make_move_iterator
 #include <memory>    // std::shared_ptr
 #include <mutex>     // std::mutex
 #include <vector>    // std::vector
 
-#include "consumerproxy/FlowControl.hpp"
+#include "proxy/consuming/FlowControl.hpp"
 
 namespace rocketmq {
 
-template <typename QueueSet, typename Queue>
+enum class FlowControlEvent { kPut, kCommit, kDrop };
+
+template <typename QueueSet, typename PullStrategy>
 class PartialCompleteFlowControlStrategy : private FlowControlNode {
  public:
-  void AfterPut(const std::shared_ptr<Queue>& queue, const FlowTracker& tracker) {
+  using QueueType = typename QueueSet::QueueType;
+  using PullStrategyType = PullStrategy;
+
+  void operator()(FlowControlEvent event, const std::shared_ptr<QueueType>& queue, const FlowTracker* tracker) {
+    switch (event) {
+      case FlowControlEvent::kPut:
+        AfterPut(queue, *tracker);
+        break;
+      case FlowControlEvent::kCommit:
+        AfterCommit(queue, *tracker);
+        break;
+      case FlowControlEvent::kDrop:
+        AfterDrop(queue);
+        break;
+    }
+  }
+
+ private:
+  void AfterPut(const std::shared_ptr<QueueType>& queue, const FlowTracker& tracker) {
     bool partial_suppressed = !queue->MaintainLT(queue_message_count_threshold_, queue_cache_size_threshold_);
 
     std::unique_lock<std::mutex> suppressed_queues_lock(suppressed_queues_mutex_);
@@ -46,10 +66,10 @@ class PartialCompleteFlowControlStrategy : private FlowControlNode {
     }
 
     suppressed_queues_lock.unlock();
-    static_cast<QueueSet*>(this)->PushPullQueue(queue);
+    pull_strategy_->OnPullMessages(queue);
   }
 
-  void AfterCommit(const std::shared_ptr<Queue>& queue, const FlowTracker& tracker) {
+  void AfterCommit(const std::shared_ptr<QueueType>& queue, const FlowTracker& tracker) {
     bool resume_from_partial_suppressed =
         queue->MaintainET(queue_message_count_threshold_, queue_cache_size_threshold_);
 
@@ -57,9 +77,12 @@ class PartialCompleteFlowControlStrategy : private FlowControlNode {
     Update(tracker);
     bool resume_from_complete_suppressed = MaintainET(total_message_count_threshold_, total_cache_size_threshold_);
 
-    if (resume_from_partial_suppressed && state() == FlowControlState::kSuppressed) {
+    if (state() == FlowControlState::kSuppressed) {
       // in complete suppressed
-      suppressed_queues_.push_back(queue);
+      if (resume_from_partial_suppressed) {
+        suppressed_queues_.push_back(queue);
+      }
+      // TODO: queue->count() == 0
       return;
     }
     if (resume_from_complete_suppressed) {
@@ -67,11 +90,11 @@ class PartialCompleteFlowControlStrategy : private FlowControlNode {
     }
     if (resume_from_partial_suppressed) {
       suppressed_queues_lock.unlock();
-      static_cast<QueueSet*>(this)->PushPullQueue(queue);
+      pull_strategy_->OnPullMessages(queue);
     }
   }
 
-  void AfterDrop(const std::shared_ptr<Queue>& queue) {
+  void AfterDrop(const std::shared_ptr<QueueType>& queue) {
     std::unique_lock<std::mutex> suppressed_queues_lock(suppressed_queues_mutex_);
     Release(queue->count(), queue->cache_size());
     if (MaintainET(total_message_count_threshold_, total_cache_size_threshold_)) {
@@ -82,13 +105,15 @@ class PartialCompleteFlowControlStrategy : private FlowControlNode {
 
  private:
   void ResumeSuppressedQueue() {
-    static_cast<QueueSet*>(this)->PushPullQueue(std::make_move_iterator(suppressed_queues_.begin()),
-                                                std::make_move_iterator(suppressed_queues_.end()));
+    pull_strategy_->OnPullMessages(std::make_move_iterator(suppressed_queues_.begin()),
+                                   std::make_move_iterator(suppressed_queues_.end()));
     suppressed_queues_.clear();
   }
 
  private:
-  std::vector<std::shared_ptr<Queue>> suppressed_queues_;
+  PullStrategyType* pull_strategy_;
+
+  std::vector<std::shared_ptr<QueueType>> suppressed_queues_;
   std::mutex suppressed_queues_mutex_;
 
   ssize_t total_message_count_threshold_{-1};
@@ -100,4 +125,4 @@ class PartialCompleteFlowControlStrategy : private FlowControlNode {
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_CONSUMERPROXY_FLOWCONTROLSTRATEGY_HPP_
+#endif  // ROCKETMQ_PROXY_CONSUMING_FLOWCONTROLSTRATEGY_HPP_

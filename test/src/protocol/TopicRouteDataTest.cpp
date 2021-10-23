@@ -26,8 +26,8 @@ using testing::InitGoogleMock;
 using testing::InitGoogleTest;
 using testing::Return;
 
-using rocketmq::ByteArray;
 using rocketmq::BrokerData;
+using rocketmq::ByteArray;
 using rocketmq::QueueData;
 using rocketmq::TopicRouteData;
 
@@ -64,20 +64,20 @@ TEST(TopicRouteDataTest, TopicRouteData) {
   const ByteArray bodyData((char*)data.data(), data.size());
   std::unique_ptr<TopicRouteData> topicRouteData(TopicRouteData::Decode(bodyData));
 
-  EXPECT_EQ(root["orderTopicConf"], topicRouteData->order_topic_conf());
+  EXPECT_EQ(root["orderTopicConf"], topicRouteData->order_topic_conf);
 
   BrokerData broker("testBroker");
-  broker.broker_addrs()[0] = "127.0.0.1:10091";
-  broker.broker_addrs()[1] = "127.0.0.2:10092";
+  broker.broker_addrs[0] = "127.0.0.1:10091";
+  broker.broker_addrs[1] = "127.0.0.2:10092";
 
-  std::vector<BrokerData> brokerDataSt = topicRouteData->broker_datas();
+  std::vector<BrokerData> brokerDataSt = topicRouteData->broker_datas;
   EXPECT_EQ(broker, brokerDataSt[0]);
 
   QueueData queue("brokerTest", 8, 8, 7);
-  std::vector<QueueData> queueDataSt = topicRouteData->queue_datas();
+  std::vector<QueueData> queueDataSt = topicRouteData->queue_datas;
   EXPECT_EQ(queue, queueDataSt[0]);
 
-  EXPECT_EQ(topicRouteData->selectBrokerAddr(), "127.0.0.1:10091");
+  EXPECT_EQ(topicRouteData->SelectBrokerAddr(), "127.0.0.1:10091");
 }
 
 int main(int argc, char* argv[]) {

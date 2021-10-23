@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "protocol/body/ConsumerRunningInfo.h"
+#include "protocol/body/ConsumerRunningInfo.hpp"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -36,48 +36,48 @@ using Json::Reader;
 using Json::Value;
 
 using rocketmq::ConsumerRunningInfo;
-using rocketmq::MQMessageQueue;
+using rocketmq::MessageQueue;
 using rocketmq::ProcessQueueInfo;
 using rocketmq::SubscriptionData;
 
 TEST(ConsumerRunningInfoTest, Init) {
   ConsumerRunningInfo consumerRunningInfo;
-  consumerRunningInfo.setJstack("jstack");
-  EXPECT_EQ(consumerRunningInfo.getJstack(), "jstack");
+  consumerRunningInfo.jstack = "jstack";
+  EXPECT_EQ(consumerRunningInfo.jstack, "jstack");
 
-  EXPECT_TRUE(consumerRunningInfo.getProperties().empty());
+  EXPECT_TRUE(consumerRunningInfo.properties.empty());
 
-  consumerRunningInfo.setProperty("testKey", "testValue");
-  map<string, string> properties = consumerRunningInfo.getProperties();
+  consumerRunningInfo.properties["testKey"] = "testValue";
+  map<string, string> properties = consumerRunningInfo.properties;
   EXPECT_EQ(properties["testKey"], "testValue");
 
-  consumerRunningInfo.setProperties(map<string, string>());
-  EXPECT_TRUE(consumerRunningInfo.getProperties().empty());
+  consumerRunningInfo.properties = map<string, string>();
+  EXPECT_TRUE(consumerRunningInfo.properties.empty());
 
-  EXPECT_TRUE(consumerRunningInfo.getSubscriptionSet().empty());
+  EXPECT_TRUE(consumerRunningInfo.subscription_set.empty());
 
   std::vector<SubscriptionData> subscriptionSet;
-  subscriptionSet.push_back(SubscriptionData());
+  subscriptionSet.emplace_back();
 
-  consumerRunningInfo.setSubscriptionSet(subscriptionSet);
-  EXPECT_EQ(consumerRunningInfo.getSubscriptionSet().size(), 1);
+  consumerRunningInfo.subscription_set = subscriptionSet;
+  EXPECT_EQ(consumerRunningInfo.subscription_set.size(), 1);
 
-  EXPECT_TRUE(consumerRunningInfo.getMqTable().empty());
+  EXPECT_TRUE(consumerRunningInfo.message_queue_table.empty());
 
-  MQMessageQueue messageQueue("testTopic", "testBroker", 3);
+  MessageQueue messageQueue("testTopic", "testBroker", 3);
   ProcessQueueInfo processQueueInfo;
-  processQueueInfo.commitOffset = 1024;
-  consumerRunningInfo.setMqTable(messageQueue, processQueueInfo);
-  std::map<MQMessageQueue, ProcessQueueInfo> mqTable = consumerRunningInfo.getMqTable();
-  EXPECT_EQ(mqTable[messageQueue].commitOffset, processQueueInfo.commitOffset);
+  processQueueInfo.commit_offset = 1024;
+  consumerRunningInfo.message_queue_table[messageQueue] = processQueueInfo;
+  std::map<MessageQueue, ProcessQueueInfo> message_queue_table = consumerRunningInfo.message_queue_table;
+  EXPECT_EQ(message_queue_table[messageQueue].commit_offset, processQueueInfo.commit_offset);
 
   // encode start
-  consumerRunningInfo.setProperty(ConsumerRunningInfo::PROP_NAMESERVER_ADDR, "127.0.0.1:9876");
-  consumerRunningInfo.setProperty(ConsumerRunningInfo::PROP_THREADPOOL_CORE_SIZE, "core_size");
-  consumerRunningInfo.setProperty(ConsumerRunningInfo::PROP_CONSUME_ORDERLY, "consume_orderly");
-  consumerRunningInfo.setProperty(ConsumerRunningInfo::PROP_CONSUME_TYPE, "consume_type");
-  consumerRunningInfo.setProperty(ConsumerRunningInfo::PROP_CLIENT_VERSION, "client_version");
-  consumerRunningInfo.setProperty(ConsumerRunningInfo::PROP_CONSUMER_START_TIMESTAMP, "127");
+  consumerRunningInfo.properties.emplace(ConsumerRunningInfo::PROP_NAMESERVER_ADDR, "127.0.0.1:9876");
+  consumerRunningInfo.properties.emplace(ConsumerRunningInfo::PROP_THREADPOOL_CORE_SIZE, "core_size");
+  consumerRunningInfo.properties.emplace(ConsumerRunningInfo::PROP_CONSUME_ORDERLY, "consume_orderly");
+  consumerRunningInfo.properties.emplace(ConsumerRunningInfo::PROP_CONSUME_TYPE, "consume_type");
+  consumerRunningInfo.properties.emplace(ConsumerRunningInfo::PROP_CLIENT_VERSION, "client_version");
+  consumerRunningInfo.properties.emplace(ConsumerRunningInfo::PROP_CONSUMER_START_TIMESTAMP, "127");
 
   // TODO
   /* string outstr = consumerRunningInfo.encode();

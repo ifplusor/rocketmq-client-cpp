@@ -16,7 +16,7 @@
  */
 #include "AllocateMQAveragely.h"
 
-#include <algorithm>
+#include <algorithm>  // std::sort
 
 #include "Logging.h"
 #include "MQException.h"

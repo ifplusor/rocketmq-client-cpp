@@ -57,8 +57,8 @@ class PollingMessageCache : public MessageCache {
       }
     }
 
-    bool remained;
-    auto messages = TakeMessagesImpl(process_queue, batch_size, std::numeric_limits<int64_t>::max(), remained);
+    bool remained = false;
+    auto messages = TakeMessagesImpl(process_queue, batch_size, std::numeric_limits<int64_t>::max(), &remained);
     if (remained) {
       // more messages to consume
       PushReadyQueueBack(process_queue);

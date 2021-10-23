@@ -18,23 +18,24 @@
 #define ROCKETMQ_CONSUMER_REBALANCEPUSHIMPL_H_
 
 #include "DefaultMQPushConsumerImpl.h"
+#include "MessageQueue.hpp"
 #include "PullRequest.h"
 #include "RebalanceImpl.h"
 
 namespace rocketmq {
 
-typedef std::map<MessageQueue, ProcessQueuePtr> MQ2PQ;
+using MQ2PQ = std::map<MessageQueue, ProcessQueuePtr>;
 
 class RebalancePushImpl : public RebalanceImpl {
  public:
   RebalancePushImpl(DefaultMQPushConsumerImpl* consumerImpl);
 
  public:
-  bool lock(const MessageQueue& mq);
-  void lockAll();
+  bool Lock(const MessageQueue& mq);
+  void LockAll();
 
-  void unlock(const MessageQueue& mq, const bool oneway = false);
-  void unlockAll(const bool oneway = false);
+  void Unlock(const MessageQueue& mq, bool oneway = false);
+  void UnlockAll(bool oneway = false);
 
  private:
   std::shared_ptr<BROKER2MQS> buildProcessQueueTableByBrokerName();
@@ -46,21 +47,18 @@ class RebalancePushImpl : public RebalanceImpl {
  protected:
   bool updateMessageQueueInRebalance(const std::string& topic,
                                      std::vector<MessageQueue>& allocated_mqs,
-                                     const bool orderly) override;
+                                     bool orderly) override;
 
  private:
   bool updateProcessQueueTableInRebalance(const std::string& topic,
-                                          std::vector<MessageQueue>& mqSet,
-                                          const bool isOrder);
+                                          std::vector<MessageQueue>& allocated_mqs,
+                                          bool orderly);
 
  public:
   bool removeUnnecessaryMessageQueue(const MessageQueue& mq, ProcessQueuePtr pq);
   void removeDirtyOffset(const MessageQueue& mq);
   int64_t computePullFromWhere(const MessageQueue& mq);
   std::vector<MessageQueue> getAllocatedMQ();
-
- private:
-  void dispatchPullRequest(const std::vector<PullRequestPtr>& pullRequestList);
 
  protected:
   void messageQueueChanged(const std::string& topic,

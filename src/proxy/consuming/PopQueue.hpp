@@ -14,17 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMERPROXY_CONSUMERPROXYSET_HPP_
-#define ROCKETMQ_CONSUMERPROXY_CONSUMERPROXYSET_HPP_
+#ifndef ROCKETMQ_PROXY_CONSUMING_POPQUEUE_HPP_
+#define ROCKETMQ_PROXY_CONSUMING_POPQUEUE_HPP_
 
-#include "consumerproxy/BasicQueueSet.hpp"
-#include "consumerproxy/LogicalQueue.hpp"
+#include <queue>  // std::queue
 
 namespace rocketmq {
 
-class LogicalQueueSet : public BasicQueueSet<LogicalQueue> {
- public:
-};
+template <typename Queue>
+Queue TryPopQueue(std::queue<Queue> queues) {
+  if (queues.empty()) {
+    return {};
+  }
+
+  // pop queue
+  auto queue = std::move(queues.front());
+  // pop again if queue is dropped
+  while (queue->dropped()) {
+    queues.pop();
+    if (queues.empty()) {
+      return {};
+    }
+    queue = std::move(queues.front());
+  }
+  queues.pop();
+
+  return queue;
+}
 
 }  // namespace rocketmq
-#endif  // ROCKETMQ_CONSUMERPROXY_CONSUMERPROXYSET_HPP_
+
+#endif  // ROCKETMQ_PROXY_CONSUMING_POPQUEUE_HPP_

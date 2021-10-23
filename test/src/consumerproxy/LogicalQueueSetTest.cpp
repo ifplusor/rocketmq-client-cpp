@@ -1,4 +1,4 @@
-/*"
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,30 +17,37 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "MessageQueue.hpp"
+#include <chrono>
+
+#include "proxy/consuming/LogicalQueueSet.hpp"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
 using testing::Return;
 
-using rocketmq::MQMessageQueue;
-using rocketmq::toJson;
+using rocketmq::LogicalQueueSet;
 
-TEST(MessageQueueTest, Json) {
-  MQMessageQueue messageQueue("testTopic", "testBroker", 1);
-  EXPECT_EQ(messageQueue.queue_id(), 1);
-  EXPECT_EQ(messageQueue.topic(), "testTopic");
-  EXPECT_EQ(messageQueue.broker_name(), "testBroker");
+TEST(LogicalQueueSetTest, LogicalQueueSet) {
+  using MessageType = LogicalQueueSet::MessageType;
+  using QueueType = LogicalQueueSet::QueueType;
 
-  Json::Value outJson = toJson(messageQueue);
-  EXPECT_EQ(outJson["queueId"], 1);
-  EXPECT_EQ(outJson["topic"], "testTopic");
-  EXPECT_EQ(outJson["brokerName"], "testBroker");
+  LogicalQueueSet queue_set;
+
+  queue_set.TryPullMessages(
+      [&queue_set](std::shared_ptr<QueueType> pull_queue,
+                   std::function<void(std::vector<MessageType>)> callback) -> void {
+        std::vector<MessageType> messages;
+        queue_set.Commit(pull_queue, messages.begin(), messages.end());
+      },
+      std::chrono::seconds(3));
+  queue_set.TryWakeupPoll(std::chrono::seconds(3));
+
+  auto messages = queue_set.Poll(1);
 }
 
 int main(int argc, char* argv[]) {
   InitGoogleMock(&argc, argv);
   testing::GTEST_FLAG(throw_on_failure) = true;
-  testing::GTEST_FLAG(filter) = "MessageQueueTest.*";
+  testing::GTEST_FLAG(filter) = "LogicalQueueSetTest.*";
   return RUN_ALL_TESTS();
 }

@@ -14,8 +14,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMERPROXY_BASICQUEUE_HPP_
-#define ROCKETMQ_CONSUMERPROXY_BASICQUEUE_HPP_
+#ifndef ROCKETMQ_PROXY_CONSUMING_BASICQUEUE_HPP_
+#define ROCKETMQ_PROXY_CONSUMING_BASICQUEUE_HPP_
+
+/*
+
+  BasicQueue synopsis:
+
+namespace rocketmq {
+
+template <typename Identity,
+          typename Message,
+          typename Offset,
+          typename OffsetAccessor,
+          typename SizeAccessor,
+          typename Compare = std::less<Offset>>
+class BasicQueue {
+ public:
+  using IdentityType = Identity;
+  using MessageType = Message;
+  using OffsetType = Offset;
+
+  BasicQueue(IdentityType identity, OffsetType nan_offset);
+
+  std::mutex& mutex();
+  bool dropped() const;
+
+  void Drop();
+
+  template <typename InputIterator>
+  bool Put(InputIterator first, InputIterator last);
+
+  bool Put(MessageType message);
+
+  std::vector<MessageType> Take(size_t batch_size, bool* empty);
+
+  template <typename InputIterator>
+  bool Commit(InputIterator first, InputIterator last);
+
+  bool Commit(const MessageType& message);
+
+  template <typename InputIterator>
+  bool Rollback(InputIterator first, InputIterator last);
+
+  bool Rollback(const MessageType& message);
+};
+
+}  // namespace rocketmq
+
+*/
 
 #include <cstddef>  // size_t
 
@@ -25,7 +72,7 @@
 #include <utility>     // std::move
 #include <vector>      // std::vector
 
-#include "consumerproxy/FlowControl.hpp"
+#include "proxy/consuming/FlowControl.hpp"
 
 namespace rocketmq {
 
@@ -34,24 +81,29 @@ namespace rocketmq {
  */
 template <typename Identity,
           typename Message,
-          typename Index,
-          typename IndexAccessor,
+          typename Offset,
+          typename OffsetAccessor,
           typename SizeAccessor,
-          typename Compare = std::less<Index>>
+          typename Compare = std::less<Offset>>
 class BasicQueue : public FlowControlNode {
  public:
   using IdentityType = Identity;
   using MessageType = Message;
-  using IndexType = Index;
+  using OffsetType = Offset;
 
-  BasicQueue(IdentityType identity, Index nan_index)
-      : max_index_(std::move(nan_index)), identity_(std::move(identity)) {}
+  BasicQueue(IdentityType identity, OffsetType nan_offset)
+      : max_offset_(std::move(nan_offset)), identity_(std::move(identity)) {}
 
   std::mutex& mutex() { return mutex_; }
 
   const IdentityType& identity() const { return identity_; }
 
   bool dropped() const { return dropped_; }
+
+  OffsetType commit_offset() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return GetCommitOffset();
+  }
 
   void Drop() { dropped_ = true; }
 
@@ -70,7 +122,12 @@ class BasicQueue : public FlowControlNode {
     return empty;
   }
 
-  std::vector<MessageType> Take(size_t batch_size, const IndexType* upper_bound, bool* empty, IndexType* next_index) {
+  std::vector<MessageType> Take(size_t batch_size, bool* empty) { return Take(batch_size, nullptr, empty, nullptr); }
+
+  std::vector<MessageType> Take(size_t batch_size,
+                                const OffsetType* upper_bound,
+                                bool* empty,
+                                OffsetType* commit_offset) {
     std::vector<MessageType> messages;
     messages.reserve(batch_size);
 
@@ -85,24 +142,11 @@ class BasicQueue : public FlowControlNode {
     }
 
     // set output
-    if (empty != nullptr || next_index != nullptr) {
-      if (!message_cache_.empty()) {
-        if (empty != nullptr) {
-          *empty = false;
-        }
-        if (next_index != nullptr) {
-          auto it = message_cache_.begin();
-          *next_index = it->first;
-        }
-      } else {
-        if (empty != nullptr) {
-          *empty = true;
-        }
-        if (next_index != nullptr) {
-          *next_index = max_index_;
-          ++(*next_index);
-        }
-      }
+    if (empty != nullptr) {
+      *empty = IsEmpty();
+    }
+    if (commit_offset != nullptr) {
+      *commit_offset = GetCommitOffset();
     }
 
     messages.shrink_to_fit();
@@ -137,16 +181,16 @@ class BasicQueue : public FlowControlNode {
 
  private:
   void PutImpl(MessageType message) {
-    IndexType index = index_accessor_(message);
-    if (compare_(max_index_, index)) {
-      max_index_ = index;
+    OffsetType offset = offset_accessor_(message);
+    if (compare_(max_offset_, offset)) {
+      max_offset_ = offset;
     }
     Acquire(size_accessor_(message));
-    message_cache_[std::move(index)] = std::move(message);
+    message_cache_[std::move(offset)] = std::move(message);
   }
 
   void CommitImpl(const MessageType& message) {
-    IndexType index = index_accessor_(message);
+    OffsetType index = offset_accessor_(message);
     auto it = consuming_message_cache_.find(index);
     if (it != consuming_message_cache_.end()) {
       consuming_message_cache_.erase(it);
@@ -155,7 +199,7 @@ class BasicQueue : public FlowControlNode {
   }
 
   void RollbackImpl(const MessageType& message) {
-    IndexType index = index_accessor_(message);
+    OffsetType index = offset_accessor_(message);
     auto it = consuming_message_cache_.find(index);
     if (it != consuming_message_cache_.end()) {
       // FIXME: check message_cache
@@ -164,17 +208,29 @@ class BasicQueue : public FlowControlNode {
     }
   }
 
- private:
-  IndexAccessor index_accessor_;
-  Compare compare_;
-  SizeAccessor size_accessor_;
+  OffsetType GetCommitOffset() const {
+    if (!consuming_message_cache_.empty()) {
+      return consuming_message_cache_.begin()->first;
+    }
+    if (!message_cache_.empty()) {
+      return message_cache_.begin()->first;
+    }
+    return ++OffsetType{max_offset_};
+  }
 
-  std::mutex mutex_;
+  bool IsEmpty() const { return message_cache_.empty() && consuming_message_cache_.empty(); }
+
+ private:
+  OffsetAccessor offset_accessor_;
+  SizeAccessor size_accessor_;
+  Compare compare_;
+
+  mutable std::mutex mutex_;
 
   // message cache
-  std::map<IndexType, MessageType, Compare> message_cache_;
-  std::map<IndexType, MessageType, Compare> consuming_message_cache_;  // for orderly
-  IndexType max_index_;
+  std::map<OffsetType, MessageType, Compare> message_cache_;
+  std::map<OffsetType, MessageType, Compare> consuming_message_cache_;  // for orderly
+  OffsetType max_offset_;
 
   IdentityType identity_;
 
@@ -183,4 +239,4 @@ class BasicQueue : public FlowControlNode {
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_CONSUMERPROXY_BASICQUEUE_HPP_
+#endif  // ROCKETMQ_PROXY_CONSUMING_BASICQUEUE_HPP_

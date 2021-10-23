@@ -14,8 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <iostream>
+
+#include <DefaultMQProducer.h>
+
 #include "common.h"
-#include "DefaultMQProducer.h"
 
 using namespace rocketmq;
 
@@ -32,10 +35,12 @@ void SyncProducerWorker(RocketmqSendAndConsumerArgs* info, DefaultMQProducer* pr
       auto end = std::chrono::system_clock::now();
 
       g_tps.Increment();
+      std::cout << "message id: " << sendResult.message_id() << std::endl;
 
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       if (duration.count() >= 500) {
-        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.message_id << std::endl;
+        std::cout << "send RT more than: " << duration.count() << "ms with msgid: " << sendResult.message_id()
+                  << std::endl;
       }
     } catch (const MQException& e) {
       std::cout << "send failed: " << e.what() << std::endl;
@@ -50,16 +55,16 @@ int main(int argc, char* argv[]) {
   }
   PrintRocketmqSendAndConsumerArgs(info);
 
-  auto* producer = new DefaultMQProducer(info.groupname);
-  producer->set_namesrv_addr(info.namesrv);
-  producer->set_group_name(info.groupname);
-  producer->set_send_msg_timeout(3000);
-  producer->set_retry_times(info.retrytimes);
-  producer->set_retry_times_for_async(info.retrytimes);
-  producer->set_send_latency_fault_enable(!info.selectUnactiveBroker);
-  producer->set_tcp_transport_try_lock_timeout(1000);
-  producer->set_tcp_transport_connect_timeout(400);
-  producer->start();
+  DefaultMQProducer producer(info.groupname);
+  producer.set_namesrv_addr(info.namesrv);
+  producer.set_group_name(info.groupname);
+  producer.set_send_msg_timeout(3000);
+  producer.set_retry_times(info.retrytimes);
+  producer.set_retry_times_for_async(info.retrytimes);
+  producer.set_send_latency_fault_enable(!info.selectUnactiveBroker);
+  producer.set_tcp_transport_try_lock_timeout(1000);
+  producer.set_tcp_transport_connect_timeout(400);
+  producer.start();
 
   std::vector<std::shared_ptr<std::thread>> work_pool;
   int msgcount = g_msg_count.load();
@@ -67,9 +72,8 @@ int main(int argc, char* argv[]) {
 
   auto start = std::chrono::system_clock::now();
 
-  int threadCount = info.thread_count;
-  for (int j = 0; j < threadCount; j++) {
-    auto th = std::make_shared<std::thread>(SyncProducerWorker, &info, producer);
+  for (int j = 0; j < info.thread_count; j++) {
+    auto th = std::make_shared<std::thread>(SyncProducerWorker, &info, &producer);
     work_pool.push_back(th);
   }
 
@@ -83,9 +87,7 @@ int main(int argc, char* argv[]) {
   std::cout << "per msg time: " << duration.count() / (double)msgcount << "ms" << std::endl
             << "========================finished=============================" << std::endl;
 
-  producer->shutdown();
-
-  delete producer;
+  producer.shutdown();
 
   return 0;
 }

@@ -25,7 +25,7 @@ set(CMAKE_PREFIX_PATH
 
 # Find dependencies
 
-#find_package(GTest REQUIRED CONFIG)
+find_package(GTest REQUIRED CONFIG)
 if(NOT GTest_FOUND)
   include_directories("${CMAKE_SOURCE_DIR}/bin/include")
 

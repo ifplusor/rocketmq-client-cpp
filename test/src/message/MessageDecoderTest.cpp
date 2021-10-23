@@ -33,7 +33,7 @@
 #include "MessageSysFlag.h"
 #include "RemotingCommand.h"
 #include "UtilAll.h"
-#include "protocol/header/CommandHeader.h"
+#include "protocol/header/SendMessageRequestHeader.hpp"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
@@ -50,7 +50,7 @@ using rocketmq::MQMessageExt;
 using rocketmq::RemotingCommand;
 using rocketmq::SendMessageRequestHeader;
 using rocketmq::stoba;
-using rocketmq::UtilAll;
+namespace UtilAll = rocketmq::UtilAll;
 
 // TODO
 TEST(MessageDecoderTest, MessageId) {

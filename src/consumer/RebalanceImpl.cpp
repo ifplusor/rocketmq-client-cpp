@@ -16,6 +16,8 @@
  */
 #include "RebalanceImpl.h"
 
+#include <utility>  // std::move
+
 #include "ConsumeType.h"
 #include "MQClientInstance.h"
 #include "OffsetStore.h"
@@ -23,16 +25,14 @@
 
 namespace rocketmq {
 
-RebalanceImpl::RebalanceImpl(const std::string& consumerGroup,
+RebalanceImpl::RebalanceImpl(std::string consumerGroup,
                              MessageModel messageModel,
-                             const AllocateMQStrategy& allocateMqStrategy,
+                             AllocateMQStrategy allocateMqStrategy,
                              MQClientInstance* instance)
-    : consumer_group_(consumerGroup),
+    : consumer_group_(std::move(consumerGroup)),
       message_model_(messageModel),
-      allocate_mq_strategy_(allocateMqStrategy),
+      allocate_mq_strategy_(std::move(allocateMqStrategy)),
       client_instance_(instance) {}
-
-RebalanceImpl::~RebalanceImpl() = default;
 
 void RebalanceImpl::doRebalance(bool orderly) {
   LOG_DEBUG_NEW("start doRebalance");
@@ -53,58 +53,58 @@ void RebalanceImpl::rebalanceByTopic(const std::string& topic, bool orderly) {
   // msg model
   switch (message_model_) {
     case BROADCASTING: {
-      std::vector<MessageQueue> mqSet;
-      if (!getTopicSubscribeInfo(topic, mqSet)) {
+      std::vector<MessageQueue> all_mqs;
+      if (!getTopicSubscribeInfo(topic, all_mqs)) {
         LOG_WARN_NEW("doRebalance, {}, but the topic[{}] not exist.", consumer_group_, topic);
         return;
       }
-      bool changed = updateMessageQueueInRebalance(topic, mqSet, orderly);
+      bool changed = updateMessageQueueInRebalance(topic, all_mqs, orderly);
       if (changed) {
-        messageQueueChanged(topic, mqSet, mqSet);
+        messageQueueChanged(topic, all_mqs, all_mqs);
       }
     } break;
     case CLUSTERING: {
-      std::vector<MessageQueue> mqAll;
-      if (!getTopicSubscribeInfo(topic, mqAll)) {
+      std::vector<MessageQueue> all_mqs;
+      if (!getTopicSubscribeInfo(topic, all_mqs)) {
         if (!UtilAll::isRetryTopic(topic)) {
           LOG_WARN_NEW("doRebalance, {}, but the topic[{}] not exist.", consumer_group_, topic);
         }
         return;
       }
 
-      auto cidAll = client_instance_->FindConsumerIds(topic, consumer_group_);
+      auto all_cids = client_instance_->FindConsumerIds(topic, consumer_group_);
 
-      if (cidAll.empty()) {
+      if (all_cids.empty()) {
         LOG_WARN_NEW("doRebalance, {} {}, get consumer id list failed", consumer_group_, topic);
         return;
       }
 
       // log
-      for (auto& cid : cidAll) {
+      for (const auto& cid : all_cids) {
         LOG_INFO_NEW("client id:{} of topic:{}", cid, topic);
       }
 
       // allocate mqs
-      std::vector<MessageQueue> allocateResult;
+      std::vector<MessageQueue> allocated_mqs;
       try {
-        allocateResult = allocate_mq_strategy_(client_instance_->GetClientId(), mqAll, cidAll);
+        allocated_mqs = allocate_mq_strategy_(client_instance_->GetClientId(), all_mqs, all_cids);
       } catch (MQException& e) {
         LOG_ERROR_NEW("encounter exception when invoke AllocateMQStrategy: {}", e.what());
         return;
       }
 
       // update local
-      bool changed = updateMessageQueueInRebalance(topic, allocateResult, orderly);
+      bool changed = updateMessageQueueInRebalance(topic, allocated_mqs, orderly);
       if (changed) {
         LOG_INFO_NEW(
             "rebalanced result changed. group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, "
             "rebalanceResultSize={}, rebalanceResultSet:",
-            consumer_group_, topic, client_instance_->GetClientId(), mqAll.size(), cidAll.size(),
-            allocateResult.size());
-        for (auto& mq : allocateResult) {
+            consumer_group_, topic, client_instance_->GetClientId(), all_mqs.size(), all_cids.size(),
+            allocated_mqs.size());
+        for (auto& mq : allocated_mqs) {
           LOG_INFO_NEW("allocate mq:{}", mq.ToString());
         }
-        messageQueueChanged(topic, mqAll, allocateResult);
+        messageQueueChanged(topic, all_mqs, allocated_mqs);
       }
     } break;
     default:

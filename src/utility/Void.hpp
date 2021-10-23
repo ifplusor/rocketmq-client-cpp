@@ -14,28 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMERPROXY_CONSUMERPROXY_HPP_
-#define ROCKETMQ_CONSUMERPROXY_CONSUMERPROXY_HPP_
+#ifndef ROCKETMQ_UTILITY_VOID_HPP_
+#define ROCKETMQ_UTILITY_VOID_HPP_
 
-#include "MessageExt.h"
-#include "MessageQueue.hpp"
-#include "consumerproxy/BasicQueue.hpp"
+#if __cplusplus >= 201703L
+
+#include <type_traits>  // std::void_t
 
 namespace rocketmq {
 
-struct QueueOffsetAccessor {
-  int64_t operator()(const MessageExtPtr& message) const { return message->queue_offset(); }
-};
-
-struct MessageSizeAccessor {
-  size_t operator()(const MessageExtPtr& message) const { return message->body().size(); }
-};
-
-class LogicalQueue : public BasicQueue<MessageQueue, MessageExtPtr, int64_t, QueueOffsetAccessor, MessageSizeAccessor> {
- public:
-  LogicalQueue(IdentityType identity) : BasicQueue(std::move(identity), -1) {}
-};
+using std::void_t;
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_CONSUMERPROXY_CONSUMERPROXY_HPP_
+#else  // __cplusplus >= 201703L
+
+namespace rocketmq {
+
+template <class...>
+using void_t = void;
+
+}  // namespace rocketmq
+
+#endif  // __cplusplus >= 201703L
+
+#endif  // ROCKETMQ_UTILITY_VOID_HPP_

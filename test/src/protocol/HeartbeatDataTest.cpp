@@ -19,7 +19,7 @@
 
 #include <vector>
 
-#include "protocol/heartbeat/HeartbeatData.hpp"
+#include "protocol/body/HeartbeatData.hpp"
 
 using testing::InitGoogleMock;
 using testing::InitGoogleTest;
@@ -36,7 +36,7 @@ using rocketmq::SubscriptionData;
 TEST(HeartbeatDataTest, ProducerData) {
   ProducerData producerData("testGroup");
 
-  Json::Value outJson = producerData.toJson();
+  Json::Value outJson = producerData.ToJson();
   EXPECT_EQ(outJson["groupName"], "testGroup");
 }
 
@@ -45,7 +45,7 @@ TEST(HeartbeatDataTest, ConsumerData) {
                             ConsumeFromWhere::CONSUME_FROM_TIMESTAMP,
                             std::vector<SubscriptionData>{SubscriptionData("testTopic", "sub")});
 
-  Json::Value outJson = consumerData.toJson();
+  Json::Value outJson = consumerData.ToJson();
 
   EXPECT_EQ(outJson["groupName"], "testGroup");
 
@@ -60,19 +60,19 @@ TEST(HeartbeatDataTest, ConsumerData) {
 
 TEST(HeartbeatDataTest, HeartbeatData) {
   HeartbeatData heartbeatData;
-  heartbeatData.set_client_id("testClientId");
+  heartbeatData.client_id = "testClientId";
 
-  EXPECT_TRUE(heartbeatData.producer_data_set().empty());
-  heartbeatData.producer_data_set().emplace_back("testGroup");
-  EXPECT_FALSE(heartbeatData.producer_data_set().empty());
+  EXPECT_TRUE(heartbeatData.producer_data_set.empty());
+  heartbeatData.producer_data_set.emplace_back("testGroup");
+  EXPECT_FALSE(heartbeatData.producer_data_set.empty());
 
-  EXPECT_TRUE(heartbeatData.consumer_data_set().empty());
-  heartbeatData.consumer_data_set().emplace_back("testGroup", ConsumeType::CONSUME_ACTIVELY, MessageModel::BROADCASTING,
-                                                 ConsumeFromWhere::CONSUME_FROM_TIMESTAMP,
-                                                 std::vector<SubscriptionData>{SubscriptionData("testTopic", "sub")});
-  EXPECT_FALSE(heartbeatData.consumer_data_set().empty());
+  EXPECT_TRUE(heartbeatData.consumer_data_set.empty());
+  heartbeatData.consumer_data_set.emplace_back("testGroup", ConsumeType::CONSUME_ACTIVELY, MessageModel::BROADCASTING,
+                                               ConsumeFromWhere::CONSUME_FROM_TIMESTAMP,
+                                               std::vector<SubscriptionData>{SubscriptionData("testTopic", "sub")});
+  EXPECT_FALSE(heartbeatData.consumer_data_set.empty());
 
-  std::string outData = heartbeatData.encode();
+  std::string outData = heartbeatData.Encode();
 
   Json::Value root;
   Json::Reader reader;

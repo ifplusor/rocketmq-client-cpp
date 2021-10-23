@@ -16,6 +16,8 @@
  */
 #include "ProcessQueue.h"
 
+#include <utility>  // std::move
+
 #include "Logging.h"
 #include "MessageQueue.hpp"
 #include "UtilAll.h"
@@ -30,16 +32,11 @@ const uint64_t kPullMaxIdleTime = 120000;          // ms
 
 namespace rocketmq {
 
-ProcessQueue::ProcessQueue(const MessageQueue& message_queue)
-    : message_queue_(message_queue),
+ProcessQueue::ProcessQueue(MessageQueue message_queue)
+    : message_queue_(std::move(message_queue)),
       last_pull_timestamp_(UtilAll::currentTimeMillis()),
       last_consume_timestamp_(UtilAll::currentTimeMillis()),
       last_lock_timestamp_(UtilAll::currentTimeMillis()) {}
-
-ProcessQueue::~ProcessQueue() {
-  message_cache_.clear();
-  consuming_message_cache_.clear();
-}
 
 bool ProcessQueue::PutMessages(const std::vector<MessageExtPtr>& messages) {
   std::lock_guard<std::mutex> lock(message_cache_mutex_);
@@ -62,12 +59,12 @@ std::vector<MessageExtPtr> ProcessQueue::TakeMessages(int batch_size,
                                                       bool need_commit,
                                                       int64_t offset_limit,
                                                       int64_t& next_offset,
-                                                      bool& remained) {
+                                                      bool* remained) {
   std::vector<MessageExtPtr> messages;
 
   std::lock_guard<std::mutex> lock(message_cache_mutex_);
 
-  for (auto it = message_cache_.begin(); it != message_cache_.end() && batch_size--;) {
+  for (auto it = message_cache_.begin(); it != message_cache_.end() && (batch_size--) > 0;) {
     if (it->first >= offset_limit) {
       break;
     }
@@ -81,10 +78,14 @@ std::vector<MessageExtPtr> ProcessQueue::TakeMessages(int batch_size,
   if (!message_cache_.empty()) {
     auto it = message_cache_.begin();
     next_offset = it->first;
-    remained = true;
+    if (remained != nullptr) {
+      *remained = true;
+    }
   } else {
     next_offset = queue_offset_max_ + 1;
-    remained = false;
+    if (remained != nullptr) {
+      *remained = false;
+    }
   }
 
   return messages;

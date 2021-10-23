@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ROCKETMQ_CONSUMERPROXY_CONSUMESTRATEGY_HPP_
-#define ROCKETMQ_CONSUMERPROXY_CONSUMESTRATEGY_HPP_
+#ifndef ROCKETMQ_PROXY_CONSUMING_CONSUMESTRATEGY_HPP_
+#define ROCKETMQ_PROXY_CONSUMING_CONSUMESTRATEGY_HPP_
 
 #include <memory>  // std::shared_ptr
 
@@ -49,4 +49,4 @@ class ExclusiveConsumeStrategy {
 
 }  // namespace rocketmq
 
-#endif  // ROCKETMQ_CONSUMERPROXY_CONSUMESTRATEGY_HPP_
+#endif  // ROCKETMQ_PROXY_CONSUMING_CONSUMESTRATEGY_HPP_
