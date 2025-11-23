@@ -17,3 +17,4 @@ build
 libs/signature/lib
 tmp_*
 test_unbounded_queue
+_codeql_build_dir/
