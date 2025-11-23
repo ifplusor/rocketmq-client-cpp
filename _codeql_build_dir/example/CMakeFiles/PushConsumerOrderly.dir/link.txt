@@ -1,0 +1,1 @@
+/home/runner/work/rocketmq-client-cpp/.codeql-scratch/dbs/cpp/working/autobuild/bin/cc -O3 -DNDEBUG -rdynamic -Wl,--dependency-file=CMakeFiles/PushConsumerOrderly.dir/link.d CMakeFiles/PushConsumerOrderly.dir/PushConsumerOrderly.c.o -o /home/runner/work/rocketmq-client-cpp/rocketmq-client-cpp/bin/PushConsumerOrderly  -lrocketmq_static

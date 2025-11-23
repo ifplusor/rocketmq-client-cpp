@@ -1,0 +1,1 @@
+/home/runner/work/rocketmq-client-cpp/.codeql-scratch/dbs/cpp/working/autobuild/bin/cc -O3 -DNDEBUG -rdynamic -Wl,--dependency-file=CMakeFiles/Producer.dir/link.d CMakeFiles/Producer.dir/Producer.c.o -o /home/runner/work/rocketmq-client-cpp/rocketmq-client-cpp/bin/Producer  -lrocketmq_static
