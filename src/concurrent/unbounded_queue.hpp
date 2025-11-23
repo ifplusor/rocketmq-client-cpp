@@ -113,7 +113,7 @@ class unbounded_queue {
     for (size_t i = 1;; i++) {
       // Wait if another thread has locked
       if (head == lock_sentinel) {
-        head = wait_unlock();
+        head = wait_for_unlock_or_stable(head_, lock_sentinel);
       }
 
       if (head == sentinel) {
@@ -144,7 +144,7 @@ class unbounded_queue {
       }
 
       // Push-pop conflict, wait for next to be set
-      next = wait_stable(head);
+      next = wait_for_unlock_or_stable(head->next, sentinel);
 
       // Restore head and return
       head_.store(next);
@@ -152,43 +152,25 @@ class unbounded_queue {
     }
   }
 
-  node_type* wait_unlock() noexcept {
+  // Wait for atomic pointer to change from unexpected value
+  // Used both for waiting on lock_sentinel and for waiting on sentinel during push-pop conflict
+  template <typename AtomicPtr>
+  node_type* wait_for_unlock_or_stable(AtomicPtr& atomic_ptr, node_type* unexpected) noexcept {
     for (size_t i = 0;; i++) {
-      auto head = head_.load();
-      if (head != lock_sentinel) {
-        return head;
+      auto ptr = atomic_ptr.load();
+      if (ptr != unexpected) {
+        return ptr;
       }
       if (i < 4) {
-        // Active spin
-        for (int j = 0; j < 30; j++) {
-          // Busy wait
-        }
-      } else if (i < 5) {
-        // Passive spin
-        std::this_thread::yield();
+        // Active spin: CPU-intensive spinning for very short waits
+        // Use a pause-like instruction on x86 to hint the processor
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+        __builtin_ia32_pause();
+#elif defined(__aarch64__) || defined(__arm__)
+        __asm__ __volatile__("yield" ::: "memory");
+#endif
       } else {
-        // Give up CPU
-        std::this_thread::yield();
-      }
-    }
-  }
-
-  node_type* wait_stable(node_type* node) noexcept {
-    for (size_t i = 0;; i++) {
-      auto next = node->next.load();
-      if (next != sentinel) {
-        return next;
-      }
-      if (i < 4) {
-        // Active spin
-        for (int j = 0; j < 30; j++) {
-          // Busy wait
-        }
-      } else if (i < 5) {
-        // Passive spin
-        std::this_thread::yield();
-      } else {
-        // Give up CPU
+        // Passive spin: Yield to scheduler to reduce CPU usage
         std::this_thread::yield();
       }
     }
