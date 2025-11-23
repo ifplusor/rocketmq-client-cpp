@@ -16,3 +16,4 @@ bin
 build
 libs/signature/lib
 tmp_*
+_codeql_detected_source_root
