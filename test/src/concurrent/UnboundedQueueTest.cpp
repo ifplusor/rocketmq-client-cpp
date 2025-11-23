@@ -128,7 +128,7 @@ TEST(UnboundedQueueTest, ConcurrentMultiPushMultiPop) {
   // Multiple consumers
   std::vector<std::vector<int>> consumer_results(num_consumers);
   for (int t = 0; t < num_consumers; ++t) {
-    threads.emplace_back([&queue, &pop_count, &consumer_results, t]() {
+    threads.emplace_back([&queue, &pop_count, &push_count, &consumer_results, t, num_producers, items_per_producer]() {
       int value;
       while (true) {
         if (queue.try_pop(value) == queue_op_status::success) {
@@ -138,7 +138,7 @@ TEST(UnboundedQueueTest, ConcurrentMultiPushMultiPop) {
           // Give producers a chance
           std::this_thread::yield();
           // Check if all pushes are done
-          if (pop_count.load(std::memory_order_relaxed) >= num_producers * items_per_producer) {
+          if (push_count.load(std::memory_order_relaxed) >= num_producers * items_per_producer) {
             break;
           }
         }

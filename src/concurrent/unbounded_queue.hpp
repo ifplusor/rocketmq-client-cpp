@@ -115,7 +115,7 @@ class unbounded_queue {
         return sentinel;
       }
       if (head != nullptr) {
-        if (head_.compare_exchange_weak(head, nullptr, std::memory_order_acquire, std::memory_order_acquire)) {
+        if (head_.compare_exchange_weak(head, nullptr, std::memory_order_acquire, std::memory_order_relaxed)) {
           auto next = head->next.load(std::memory_order_acquire);
           if (next == sentinel) {
             auto t = head;
