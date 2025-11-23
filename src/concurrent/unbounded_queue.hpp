@@ -64,10 +64,12 @@ class unbounded_queue {
     }
 
     ::operator delete(sentinel);
+    ::operator delete(lock_sentinel);
   }
 
   unbounded_queue(bool clear_when_destruct = true)
       : sentinel(static_cast<node_type*>(::operator new(sizeof(node_type)))),
+        lock_sentinel(static_cast<node_type*>(::operator new(sizeof(node_type)))),
         _clear_when_destruct(clear_when_destruct) {
     sentinel->next.store(sentinel);
     head_ = tail_ = sentinel;
@@ -109,45 +111,74 @@ class unbounded_queue {
   node_type* pop_impl() noexcept {
     auto head = head_.load();
     for (size_t i = 1;; i++) {
+      // Wait if another thread has locked
+      if (head == lock_sentinel) {
+        head = wait_for_unlock_or_stable(head_, lock_sentinel);
+      }
+
       if (head == sentinel) {
         // no task, or it is/are not ready
         return sentinel;
       }
-      if (head != nullptr) {
-        if (head_.compare_exchange_weak(head, nullptr)) {
-          auto next = head->next.load();
-          if (next == sentinel) {
-            auto t = head;
-            // only one element
-            if (tail_.compare_exchange_strong(t, sentinel)) {
-              t = nullptr;
-              head_.compare_exchange_strong(t, sentinel);
-              return head;
-            }
-            size_t j = 0;
-            do {
-              // push-pop conflict, spin
-              if (0 == ++j % 10) {
-                std::this_thread::yield();
-              }
-              next = head->next.load();
-            } while (next == sentinel);
-          }
-          head_.store(next);
+
+      auto next = head->next.load();
+      if (next != sentinel) {
+        // More than one element, simple case
+        if (head_.compare_exchange_weak(head, next)) {
           return head;
         }
-      } else {
-        head = head_.load();
+        continue;
       }
-      if (0 == i % 15 && head != sentinel) {
+
+      // Only one element, need to lock
+      if (!head_.compare_exchange_weak(head, lock_sentinel)) {
+        continue;
+      }
+
+      // Successfully locked, now check if tail still points to head
+      auto t = head;
+      if (tail_.compare_exchange_strong(t, sentinel)) {
+        // Queue is now empty, unlock and return
+        head_.store(sentinel);
+        return head;
+      }
+
+      // Push-pop conflict, wait for next to be set
+      next = wait_for_unlock_or_stable(head->next, sentinel);
+
+      // Restore head and return
+      head_.store(next);
+      return head;
+    }
+  }
+
+  // Wait for atomic pointer to change from unexpected value
+  // Used both for waiting on lock_sentinel and for waiting on sentinel during push-pop conflict
+  template <typename AtomicPtr>
+  node_type* wait_for_unlock_or_stable(AtomicPtr& atomic_ptr, node_type* unexpected) noexcept {
+    for (size_t i = 0;; i++) {
+      auto ptr = atomic_ptr.load();
+      if (ptr != unexpected) {
+        return ptr;
+      }
+      if (i < 4) {
+        // Active spin: CPU-intensive spinning for very short waits
+        // Use a pause-like instruction on x86 to hint the processor
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+        __builtin_ia32_pause();
+#elif defined(__aarch64__) || defined(__arm__)
+        __asm__ __volatile__("yield" ::: "memory");
+#endif
+      } else {
+        // Passive spin: Yield to scheduler to reduce CPU usage
         std::this_thread::yield();
-        head = head_.load();
       }
     }
   }
 
   std::atomic<node_type*> head_, tail_;
   node_type* const sentinel;
+  node_type* const lock_sentinel;
   bool _clear_when_destruct;
 };
 

@@ -1,0 +1,1 @@
+/home/runner/work/rocketmq-client-cpp/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -rdynamic -Wl,--dependency-file=CMakeFiles/RequestReply.dir/link.d CMakeFiles/RequestReply.dir/RequestReply.cpp.o -o /home/runner/work/rocketmq-client-cpp/rocketmq-client-cpp/bin/RequestReply  -lrocketmq_static

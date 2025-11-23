@@ -1,0 +1,2 @@
+/usr/bin/ar qc /home/runner/work/rocketmq-client-cpp/rocketmq-client-cpp/libs/signature/lib/libSignature.a CMakeFiles/Signature.dir/src/base64.c.o CMakeFiles/Signature.dir/src/hmac.c.o CMakeFiles/Signature.dir/src/param_list.c.o CMakeFiles/Signature.dir/src/sha1.c.o CMakeFiles/Signature.dir/src/sha256.c.o CMakeFiles/Signature.dir/src/sha512.c.o CMakeFiles/Signature.dir/src/spas_client.c.o
+/usr/bin/ranlib /home/runner/work/rocketmq-client-cpp/rocketmq-client-cpp/libs/signature/lib/libSignature.a
