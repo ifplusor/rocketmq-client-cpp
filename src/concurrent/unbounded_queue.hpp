@@ -69,11 +69,12 @@ class unbounded_queue {
   unbounded_queue(bool clear_when_destruct = true)
       : sentinel(static_cast<node_type*>(::operator new(sizeof(node_type)))),
         _clear_when_destruct(clear_when_destruct) {
-    sentinel->next.store(sentinel);
-    head_ = tail_ = sentinel;
+    sentinel->next.store(sentinel, std::memory_order_relaxed);
+    head_.store(sentinel, std::memory_order_relaxed);
+    tail_.store(sentinel, std::memory_order_relaxed);
   }
 
-  bool is_empty() { return sentinel == tail_.load(); }
+  bool is_empty() { return sentinel == tail_.load(std::memory_order_acquire); }
 
   void push(const value_type& value) {
     auto* node = new node_type(value);
@@ -96,32 +97,32 @@ class unbounded_queue {
 
  private:
   void push_impl(node_type* node) noexcept {
-    node->next.store(sentinel);
-    auto tail = tail_.exchange(node);
+    node->next.store(sentinel, std::memory_order_relaxed);
+    auto tail = tail_.exchange(node, std::memory_order_acq_rel);
     if (tail == sentinel) {
-      head_.store(node);
+      head_.store(node, std::memory_order_release);
     } else {
       // guarantee: tail is not released
-      tail->next.store(node);
+      tail->next.store(node, std::memory_order_release);
     }
   }
 
   node_type* pop_impl() noexcept {
-    auto head = head_.load();
+    auto head = head_.load(std::memory_order_acquire);
     for (size_t i = 1;; i++) {
       if (head == sentinel) {
         // no task, or it is/are not ready
         return sentinel;
       }
       if (head != nullptr) {
-        if (head_.compare_exchange_weak(head, nullptr)) {
-          auto next = head->next.load();
+        if (head_.compare_exchange_weak(head, nullptr, std::memory_order_acquire, std::memory_order_acquire)) {
+          auto next = head->next.load(std::memory_order_acquire);
           if (next == sentinel) {
             auto t = head;
             // only one element
-            if (tail_.compare_exchange_strong(t, sentinel)) {
+            if (tail_.compare_exchange_strong(t, sentinel, std::memory_order_acq_rel, std::memory_order_acquire)) {
               t = nullptr;
-              head_.compare_exchange_strong(t, sentinel);
+              head_.compare_exchange_strong(t, sentinel, std::memory_order_release, std::memory_order_relaxed);
               return head;
             }
             size_t j = 0;
@@ -130,18 +131,18 @@ class unbounded_queue {
               if (0 == ++j % 10) {
                 std::this_thread::yield();
               }
-              next = head->next.load();
+              next = head->next.load(std::memory_order_acquire);
             } while (next == sentinel);
           }
-          head_.store(next);
+          head_.store(next, std::memory_order_release);
           return head;
         }
       } else {
-        head = head_.load();
+        head = head_.load(std::memory_order_acquire);
       }
       if (0 == i % 15 && head != sentinel) {
         std::this_thread::yield();
-        head = head_.load();
+        head = head_.load(std::memory_order_acquire);
       }
     }
   }
