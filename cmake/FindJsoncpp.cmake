@@ -49,7 +49,7 @@ else()
 endif()
 
 set(JSONCPP_INCLUDE_SEARCH_PATH /usr/local/include /usr/include)
-set(JSONCPP_LIBRARIES_SEARCH_PATH /usr/local/lib /usr/lib)
+set(JSONCPP_LIBRARIES_SEARCH_PATH /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu)
 if(JSONCPP_ROOT)
   list(INSERT JSONCPP_INCLUDE_SEARCH_PATH 0 ${JSONCPP_ROOT}/include)
   list(INSERT JSONCPP_LIBRARIES_SEARCH_PATH 0 ${JSONCPP_ROOT}/lib)
